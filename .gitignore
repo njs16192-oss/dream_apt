@@ -1,0 +1,23 @@
+# Java / Gradle
+.gradle/
+build/
+out/
+*.class
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 환경변수 / 비밀값
+.env
+*.env.local
+application-local.yml
+
+# OS
+.DS_Store
+Thumbs.db
