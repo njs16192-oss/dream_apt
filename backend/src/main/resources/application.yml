@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: dream-apt
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/dreamapt}
+    username: ${DB_USERNAME:dreamapt}
+    password: ${DB_PASSWORD:dreamapt}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
