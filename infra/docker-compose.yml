@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: dreamapt-postgres
+    environment:
+      POSTGRES_DB: dreamapt
+      POSTGRES_USER: dreamapt
+      POSTGRES_PASSWORD: dreamapt
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
