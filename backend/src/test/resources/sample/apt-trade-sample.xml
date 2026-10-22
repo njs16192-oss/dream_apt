@@ -1,0 +1,353 @@
+<response>
+<header>
+<resultCode>000</resultCode>
+<resultMsg>OK</resultMsg>
+</header>
+<body>
+<items>
+<item>
+<aptDong> </aptDong>
+<aptNm>가양2단지(성지)</aptNm>
+<aptSeq>11500-151</aptSeq>
+<bonbun>1461</bonbun>
+<bubun>0000</bubun>
+<buildYear>1992</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>81,700</dealAmount>
+<dealDay>20</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>34.44</excluUseAr>
+<floor>7</floor>
+<jibun>1461</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>허준로</roadNm>
+<roadNmBonbun>00047</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3115013</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10400</umdCd>
+<umdNm>가양동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>등촌동아이파크</aptNm>
+<aptSeq>11500-263</aptSeq>
+<bonbun>0715</bonbun>
+<bubun>0000</bubun>
+<buildYear>2004</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>160,000</dealAmount>
+<dealDay>30</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>134.8836</excluUseAr>
+<floor>15</floor>
+<jibun>715</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>등촌로</roadNm>
+<roadNmBonbun>00163</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3005064</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10200</umdCd>
+<umdNm>등촌동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>우장산아이파크,이편한세상</aptNm>
+<aptSeq>11500-5419</aptSeq>
+<bonbun>1159</bonbun>
+<bubun>0000</bubun>
+<buildYear>2008</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>141,000</dealAmount>
+<dealDay>22</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>59.98</excluUseAr>
+<floor>22</floor>
+<jibun>1159</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>강서로</roadNm>
+<roadNmBonbun>00266</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3115001</roadNmCd>
+<roadNmSeq>02</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10300</umdCd>
+<umdNm>화곡동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>등촌1,2단지주공아파트</aptNm>
+<aptSeq>11500-54</aptSeq>
+<bonbun>0687</bonbun>
+<bubun>0000</bubun>
+<buildYear>1994</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>79,000</dealAmount>
+<dealDay>21</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>41.85</excluUseAr>
+<floor>15</floor>
+<jibun>687</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>강서로68길</roadNm>
+<roadNmBonbun>00036</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>4145077</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10200</umdCd>
+<umdNm>등촌동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>마곡중앙하이츠아파트</aptNm>
+<aptSeq>11500-192</aptSeq>
+<bonbun>0852</bonbun>
+<bubun>0000</bubun>
+<buildYear>1994</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>60,000</dealAmount>
+<dealDay>18</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>경남 산청군</estateAgentSggNm>
+<excluUseAr>59.34</excluUseAr>
+<floor>15</floor>
+<jibun>852</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>양천로6길</roadNm>
+<roadNmBonbun>00028</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>4145424</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10900</umdCd>
+<umdNm>방화동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>등촌동아이파크</aptNm>
+<aptSeq>11500-263</aptSeq>
+<bonbun>0715</bonbun>
+<bubun>0000</bubun>
+<buildYear>2004</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>135,000</dealAmount>
+<dealDay>28</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>84.9958</excluUseAr>
+<floor>18</floor>
+<jibun>715</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>등촌로</roadNm>
+<roadNmBonbun>00163</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3005064</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10200</umdCd>
+<umdNm>등촌동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>우장산아이파크,이편한세상</aptNm>
+<aptSeq>11500-5419</aptSeq>
+<bonbun>1159</bonbun>
+<bubun>0000</bubun>
+<buildYear>2008</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>161,000</dealAmount>
+<dealDay>19</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>84.97</excluUseAr>
+<floor>2</floor>
+<jibun>1159</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>강서로</roadNm>
+<roadNmBonbun>00266</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3115001</roadNmCd>
+<roadNmSeq>02</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10300</umdCd>
+<umdNm>화곡동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>청성</aptNm>
+<aptSeq>11500-221</aptSeq>
+<bonbun>0866</bonbun>
+<bubun>0000</bubun>
+<buildYear>2002</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>68,000</dealAmount>
+<dealDay>29</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>84.6275</excluUseAr>
+<floor>11</floor>
+<jibun>866</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>금낭화로</roadNm>
+<roadNmBonbun>00100</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3115002</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10900</umdCd>
+<umdNm>방화동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>한강타운</aptNm>
+<aptSeq>11500-155</aptSeq>
+<bonbun>1460</bonbun>
+<bubun>0000</bubun>
+<buildYear>1993</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>141,000</dealAmount>
+<dealDay>21</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>중개거래</dealingGbn>
+<estateAgentSggNm>서울 강서구</estateAgentSggNm>
+<excluUseAr>84.99</excluUseAr>
+<floor>12</floor>
+<jibun>1460</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>허준로</roadNm>
+<roadNmBonbun>00023</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>3115013</roadNmCd>
+<roadNmSeq>01</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>개인</slerGbn>
+<umdCd>10400</umdCd>
+<umdNm>가양동</umdNm>
+</item>
+<item>
+<aptDong> </aptDong>
+<aptNm>더트루엘마곡HQ</aptNm>
+<aptSeq>11500-8519</aptSeq>
+<bonbun>1398</bonbun>
+<bubun>0000</bubun>
+<buildYear>2024</buildYear>
+<buyerGbn>개인</buyerGbn>
+<cdealDay> </cdealDay>
+<cdealType> </cdealType>
+<dealAmount>67,400</dealAmount>
+<dealDay>23</dealDay>
+<dealMonth>9</dealMonth>
+<dealYear>2026</dealYear>
+<dealingGbn>직거래</dealingGbn>
+<estateAgentSggNm> </estateAgentSggNm>
+<excluUseAr>48.3293</excluUseAr>
+<floor>4</floor>
+<jibun>1398</jibun>
+<landCd>1</landCd>
+<landLeaseholdGbn>N</landLeaseholdGbn>
+<rgstDate> </rgstDate>
+<roadNm>공항대로</roadNm>
+<roadNmBonbun>00067</roadNmBonbun>
+<roadNmBubun>00000</roadNmBubun>
+<roadNmCd>2005007</roadNmCd>
+<roadNmSeq>00</roadNmSeq>
+<roadNmSggCd>11500</roadNmSggCd>
+<roadNmbCd>0</roadNmbCd>
+<sggCd>11500</sggCd>
+<slerGbn>법인</slerGbn>
+<umdCd>10800</umdCd>
+<umdNm>공항동</umdNm>
+</item>
+</items>
+<numOfRows>10</numOfRows>
+<pageNo>1</pageNo>
+<totalCount>252</totalCount>
+</body>
+</response>
