@@ -41,7 +41,7 @@ class TradeUpsertIntegrationTest {
         UpsertResult result = upsertService.save(sample);
 
         // 샘플 10건 중 단지는 8개 (11500-263, 11500-5419가 두 번씩 나옴)
-        assertThat(result).isEqualTo(new UpsertResult(8, 10, 0, 0));
+        assertThat(result).isEqualTo(new UpsertResult(8, 10, 0, 0, 0));
         assertThat(count("apt_complex")).isEqualTo(8);
         assertThat(count("apt_trade")).isEqualTo(10);
     }
@@ -53,7 +53,7 @@ class TradeUpsertIntegrationTest {
 
         UpsertResult second = upsertService.save(sample);
 
-        assertThat(second).isEqualTo(new UpsertResult(8, 0, 0, 10));
+        assertThat(second).isEqualTo(new UpsertResult(8, 0, 0, 10, 0));
         assertThat(count("apt_complex")).isEqualTo(8);
         assertThat(count("apt_trade")).isEqualTo(10);
         assertThat(tradeIds()).isEqualTo(idsBefore);
@@ -69,7 +69,7 @@ class TradeUpsertIntegrationTest {
         UpsertResult result = upsertService.save(List.of(cancelled));
 
         Map<String, Object> after = trade(original);
-        assertThat(result).isEqualTo(new UpsertResult(1, 0, 1, 0));
+        assertThat(result).isEqualTo(new UpsertResult(1, 0, 1, 0, 0));
         assertThat(count("apt_trade")).isEqualTo(1);
         assertThat(after.get("id")).isEqualTo(before.get("id"));
         assertThat(after.get("cancelled")).isEqualTo(true);
@@ -87,7 +87,7 @@ class TradeUpsertIntegrationTest {
         UpsertResult result = upsertService.save(List.of(registered));
 
         Map<String, Object> after = trade(original);
-        assertThat(result).isEqualTo(new UpsertResult(1, 0, 1, 0));
+        assertThat(result).isEqualTo(new UpsertResult(1, 0, 1, 0, 0));
         assertThat(count("apt_trade")).isEqualTo(1);
         assertThat(after.get("apt_dong")).isEqualTo("201");
         assertThat(after.get("registered_date")).isEqualTo(java.sql.Date.valueOf("2026-10-15"));
@@ -110,6 +110,32 @@ class TradeUpsertIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT name FROM apt_complex WHERE apt_seq = ?", String.class,
                 original.aptSeq())).isEqualTo("가양2단지성지아파트");
         assertThat(count("apt_complex")).isEqualTo(1);
+    }
+
+    @Test
+    void 같은_키의_정상_거래와_해제_거래는_응답_순서와_무관하게_정상_거래로_합친다() {
+        TradeRecord normal = sample.get(0);
+        TradeRecord cancelled = withLateValues(normal, null, true, LocalDate.of(2026, 10, 2), null);
+
+        UpsertResult first = upsertService.save(List.of(normal, cancelled));
+        assertThat(first).isEqualTo(new UpsertResult(1, 1, 0, 0, 1));
+        assertThat(trade(normal).get("cancelled")).isEqualTo(false);
+
+        // 순서가 바뀌어도 결과가 같고, 다시 수집해도 값이 뒤집히지 않는다
+        UpsertResult second = upsertService.save(List.of(cancelled, normal));
+        assertThat(second).isEqualTo(new UpsertResult(1, 0, 0, 1, 1));
+        assertThat(trade(normal).get("cancelled")).isEqualTo(false);
+        assertThat(count("apt_trade")).isEqualTo(1);
+    }
+
+    @Test
+    void 완전히_같은_레코드는_하나로_합친다() {
+        TradeRecord r = sample.get(0);
+
+        UpsertResult result = upsertService.save(List.of(r, r, r));
+
+        assertThat(result).isEqualTo(new UpsertResult(1, 1, 0, 0, 2));
+        assertThat(count("apt_trade")).isEqualTo(1);
     }
 
     private static TradeRecord withLateValues(TradeRecord r, String aptDong, boolean cancelled,

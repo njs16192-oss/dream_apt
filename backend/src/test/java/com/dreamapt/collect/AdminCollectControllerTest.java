@@ -23,14 +23,15 @@ class AdminCollectControllerTest {
     @Test
     void 수집_결과를_반환한다() throws Exception {
         given(collectService.collect("11500", "202609"))
-                .willReturn(new CollectResult("11500", "202609", 252, 120, 240, 10, 2));
+                .willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 2, 10));
 
         mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fetched").value(252))
-                .andExpect(jsonPath("$.inserted").value(240))
+                .andExpect(jsonPath("$.inserted").value(230))
                 .andExpect(jsonPath("$.updated").value(10))
-                .andExpect(jsonPath("$.unchanged").value(2));
+                .andExpect(jsonPath("$.unchanged").value(2))
+                .andExpect(jsonPath("$.merged").value(10));
     }
 
     @Test
