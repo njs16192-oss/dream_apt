@@ -21,3 +21,5 @@ application-local.yml
 # OS
 .DS_Store
 Thumbs.db
+# 분석용 원본 데이터 (scripts/analysis)
+data/
