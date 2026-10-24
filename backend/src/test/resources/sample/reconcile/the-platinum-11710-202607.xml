@@ -1,0 +1,15 @@
+<response>
+<header>
+<resultCode>000</resultCode>
+<resultMsg>OK</resultMsg>
+</header>
+<body>
+<items>
+<item><aptDong>102</aptDong><aptNm>송파더플래티넘</aptNm><aptSeq>11710-9616</aptSeq><bonbun>0067</bonbun><bubun>0000</bubun><buildYear>2024</buildYear><buyerGbn>개인</buyerGbn><cdealDay> </cdealDay><cdealType> </cdealType><dealAmount>172,000</dealAmount><dealDay>11</dealDay><dealMonth>7</dealMonth><dealYear>2026</dealYear><dealingGbn>중개거래</dealingGbn><estateAgentSggNm>서울 송파구</estateAgentSggNm><excluUseAr>89.07</excluUseAr><floor>10</floor><jibun>67</jibun><landCd>1</landCd><landLeaseholdGbn>N</landLeaseholdGbn><rgstDate>26.10.15</rgstDate><roadNm>성내천로</roadNm><roadNmBonbun>00050</roadNmBonbun><roadNmBubun>00000</roadNmBubun><roadNmCd>3123010</roadNmCd><roadNmSeq>00</roadNmSeq><roadNmSggCd>11710</roadNmSggCd><roadNmbCd> </roadNmbCd><sggCd>11710</sggCd><slerGbn>개인</slerGbn><umdCd>11200</umdCd><umdNm>오금동</umdNm></item>
+<item><aptDong> </aptDong><aptNm>송파더플래티넘</aptNm><aptSeq>11710-9616</aptSeq><bonbun>0067</bonbun><bubun>0000</bubun><buildYear>2024</buildYear><buyerGbn>개인</buyerGbn><cdealDay> </cdealDay><cdealType> </cdealType><dealAmount>172,000</dealAmount><dealDay>11</dealDay><dealMonth>7</dealMonth><dealYear>2026</dealYear><dealingGbn>중개거래</dealingGbn><estateAgentSggNm>서울 송파구</estateAgentSggNm><excluUseAr>89.07</excluUseAr><floor>10</floor><jibun>67</jibun><landCd>1</landCd><landLeaseholdGbn>N</landLeaseholdGbn><rgstDate> </rgstDate><roadNm>성내천로</roadNm><roadNmBonbun>00050</roadNmBonbun><roadNmBubun>00000</roadNmBubun><roadNmCd>3123010</roadNmCd><roadNmSeq>00</roadNmSeq><roadNmSggCd>11710</roadNmSggCd><roadNmbCd> </roadNmbCd><sggCd>11710</sggCd><slerGbn>개인</slerGbn><umdCd>11200</umdCd><umdNm>오금동</umdNm></item>
+</items>
+<numOfRows>1000</numOfRows>
+<pageNo>1</pageNo>
+<totalCount>2</totalCount>
+</body>
+</response>
