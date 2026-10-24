@@ -21,7 +21,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 아파트 매매 거래. 중복 판단 키: (apt_seq, deal_date, exclu_use_ar, floor, deal_amount)
+ * 아파트 매매 거래. 같은 그룹 키 (apt_seq, deal_date, exclu_use_ar, floor, deal_amount)의
+ * 행이 여러 개일 수 있고, 수집할 때 구×월 단위로 원본과 대조한다 (ADR 004).
+ * 유효 거래 = {@code cancelled = false AND missing_since IS NULL}
  */
 @Entity
 @Table(name = "apt_trade")
@@ -73,6 +75,9 @@ public class AptTrade {
     private LocalDate cancelDate;
 
     private LocalDate registeredDate;
+
+    // 원본(API)에서 사라진 것이 처음 확인된 시각. 다시 나타나면 null
+    private LocalDateTime missingSince;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
