@@ -39,7 +39,7 @@ public class TradeApiClient {
         this.apiKey = properties.apiKey();
     }
 
-    public List<TradeRecord> fetch(String sggCd, String dealYm) {
+    public FetchedTrades fetch(String sggCd, String dealYm) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new TradeApiException("API 키가 없습니다. 환경변수 DATA_GO_KR_API_KEY를 설정하세요.");
         }
@@ -51,7 +51,7 @@ public class TradeApiClient {
             log.info("실거래가 조회 sggCd={} dealYm={} page={} items={} total={}",
                     sggCd, dealYm, pageNo, page.items().size(), page.totalCount());
             if (page.items().isEmpty() || all.size() >= page.totalCount()) {
-                return all;
+                return new FetchedTrades(all, page.totalCount());
             }
         }
         throw new TradeApiException("페이지 수가 " + MAX_PAGES + "를 넘었습니다: sggCd=" + sggCd + ", dealYm=" + dealYm);

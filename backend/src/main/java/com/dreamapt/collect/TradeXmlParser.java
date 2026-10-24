@@ -73,7 +73,7 @@ public class TradeXmlParser {
                         Integer.parseInt(text(item, "dealMonth")),
                         Integer.parseInt(text(item, "dealDay"))),
                 Integer.parseInt(text(item, "dealAmount").replace(",", "")),
-                // unique 키에 들어가는 값이라 컬럼 정밀도(NUMERIC(7,2))에 맞춰 Java에서 먼저 반올림
+                // 대조 그룹 키에 들어가는 값이라 컬럼 정밀도(NUMERIC(7,2))에 맞춰 Java에서 먼저 반올림
                 new BigDecimal(text(item, "excluUseAr")).setScale(2, RoundingMode.HALF_UP),
                 Short.parseShort(text(item, "floor")),
                 text(item, "aptDong"),

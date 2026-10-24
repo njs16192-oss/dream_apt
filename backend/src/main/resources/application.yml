@@ -26,3 +26,7 @@ dreamapt:
     base-url: ${DATA_GO_KR_BASE_URL:https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev}
     # 공공데이터포털의 "Decoding" 키 (Encoding 키를 넣으면 이중 인코딩되어 인증 실패)
     api-key: ${DATA_GO_KR_API_KEY:}
+  # 새 missing이 최소 건수 이상이고 기존 유효 행 대비 비율이 한도를 넘으면 missing 표시를 보류 (ADR 004)
+  collect:
+    missing-ratio-limit: ${COLLECT_MISSING_RATIO_LIMIT:0.2}
+    missing-min-count: ${COLLECT_MISSING_MIN_COUNT:5}

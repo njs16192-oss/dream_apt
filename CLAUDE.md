@@ -29,11 +29,14 @@ docs/troubleshooting.md
   - 파라미터: serviceKey, LAWD_CD(시군구 5자리), DEAL_YMD(YYYYMM), pageNo, numOfRows
   - 응답 샘플: `backend/src/test/resources/sample/apt-trade-sample.xml`
 - 테이블: `apt_complex`(단지, PK=aptSeq), `apt_trade`(거래)
-- 거래 중복: unique(apt_seq, deal_date, exclu_use_ar, floor, deal_amount) 기준 upsert
-  - 나중에 채워지는 값(apt_dong, registered_date, cancelled/cancel_date)은 키에 넣지 않고 갱신 대상으로 처리
+- 거래 식별: 구×월 단위 대조(reconcile) (docs/adr/004-trade-reconcile.md)
+  - 같은 키 (apt_seq, deal_date, exclu_use_ar, floor, deal_amount)의 행이 여러 개일 수 있음 (unique 제약 없음)
+  - 그룹 안에서 정확 일치 → unchanged, "빈 값 → 채워짐" → update, 남은 응답 → insert, 남은 행 → `missing_since` 표시 (삭제 안 함)
+  - 나중에 채워지는 값(apt_dong, registered_date, cancelled/cancel_date)은 갱신 대상
 - 거래금액 `deal_amount`는 **만원 단위 INTEGER**
 - API의 빈 값은 공백 문자열(" ")로 옴 → trim 후 빈 문자열은 null
-- 해제 거래(`cdealType` 값 있음)는 `cancelled=true`로 저장, 삭제하지 않음. 가격 추이·신고가 판단에서는 기본 제외
+- 해제 거래(`cdealType` 값 있음)는 `cancelled=true`로 저장, 삭제하지 않음
+- **유효 거래 = `cancelled = false AND missing_since IS NULL`**. 가격 추이, 신고가 판단 등 모든 조회는 이 조건을 기본으로 한다 (구현 방식(뷰, 공통 조건 등)은 3단계에서 결정)
 - 면적은 전용면적(㎡)만 제공됨
 
 ## 규칙

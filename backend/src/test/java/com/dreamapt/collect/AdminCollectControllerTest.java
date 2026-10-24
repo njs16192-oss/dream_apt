@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -23,15 +25,17 @@ class AdminCollectControllerTest {
     @Test
     void 수집_결과를_반환한다() throws Exception {
         given(collectService.collect("11500", "202609"))
-                .willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 2, 10));
+                .willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 12, 7,
+                        List.of(ReconcileResult.MISSING_RATIO_EXCEEDED)));
 
         mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fetched").value(252))
                 .andExpect(jsonPath("$.inserted").value(230))
                 .andExpect(jsonPath("$.updated").value(10))
-                .andExpect(jsonPath("$.unchanged").value(2))
-                .andExpect(jsonPath("$.merged").value(10));
+                .andExpect(jsonPath("$.unchanged").value(12))
+                .andExpect(jsonPath("$.missing").value(7))
+                .andExpect(jsonPath("$.warnings[0]").value("MISSING_RATIO_EXCEEDED"));
     }
 
     @Test
