@@ -42,6 +42,8 @@ docs/troubleshooting.md
 - API 키 등 비밀값은 커밋 금지. 환경변수 `DATA_GO_KR_API_KEY`로 주입
 - 설정값은 `${ENV_NAME:기본값}` 형식 사용 (k8s에서 환경변수로 교체 예정)
 - 커밋 메시지: Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
+  - 타입 접두사는 영어, 설명과 본문은 한국어 (예: `feat: 실거래가 수집 API 추가`, `fix: 빈 동 정보를 null로 저장`)
+  - PR 제목도 같은 형식
 - 브랜치: 작업은 `main`에서 분기한 브랜치에서 진행하고 PR로 머지. `main`에 직접 커밋·push 하지 않음
   - 브랜치명: `<type>/<짧은-설명>` (예: `feat/trade-collector`, `fix/null-apt-dong`, `docs/adr-003`)
 
