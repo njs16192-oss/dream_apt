@@ -1,6 +1,6 @@
 # 003. 수집 데이터 저장에 JdbcTemplate batch + ON CONFLICT 사용
 
-- 상태: 확정
+- 상태: 확정 (거래의 중복 처리·건수 계산·같은 키 병합은 [ADR 004](004-trade-reconcile.md)로 대체. JdbcTemplate batch와 단지 upsert는 유지)
 - 날짜: 2026-10-22
 - 관련: [ADR 002](002-trade-data-schema.md) (unique 키 + upsert 결정), [키 충돌 분석](../analysis/2026-10-key-collision.md)
 
@@ -9,9 +9,9 @@
 | 항목 | 결정 |
 |---|---|
 | 저장 방식 | JPA `saveAll` 대신 `NamedParameterJdbcTemplate.batchUpdate` |
-| 중복 처리 | PostgreSQL `INSERT ... ON CONFLICT DO UPDATE ... WHERE ... IS DISTINCT FROM` |
-| 신규/갱신 건수 | upsert 전후 행 수 차이로 계산 |
-| 배치 안 같은 키 | Java에서 정상 거래 우선 규칙으로 하나로 합침 (**임시 조치**, ADR 004에서 대체 예정) |
+| 중복 처리 | PostgreSQL `INSERT ... ON CONFLICT DO UPDATE ... WHERE ... IS DISTINCT FROM` (거래는 ADR 004 대조로 대체, 단지는 유지) |
+| 신규/갱신 건수 | upsert 전후 행 수 차이로 계산 (ADR 004에서 대조 결과로 대체) |
+| 배치 안 같은 키 | Java에서 정상 거래 우선 규칙으로 하나로 합침 (**임시 조치**, ADR 004에서 대체됨) |
 | 조회 | 기존처럼 JPA 엔티티 사용 (저장 경로만 JDBC) |
 
 ---
@@ -62,6 +62,8 @@ JDBC batch는 INSERT든 UPDATE든 영향 행 수가 1이라 둘을 구분할 수
 - 한계: 같은 단지·기간을 동시에 수집하면 수치가 어긋날 수 있다. 저장 결과에는 영향이 없고 관리용 수치라 허용한다.
 
 ## 4. 배치 안 같은 키 레코드 병합 (임시 조치)
+
+> **대체됨 (2026-10-25)**: 이 병합 규칙은 제거했다. 같은 키 레코드는 모두 저장하고 구×월 단위로 대조한다 → [ADR 004](004-trade-reconcile.md)
 
 실데이터에서 한 응답 안에 unique 키가 같은 레코드가 252건 중 13건 나왔다 ([키 충돌 분석](../analysis/2026-10-key-collision.md)).
 그대로 batch에 넣으면 같은 행을 서로 덮어써서, 응답 순서에 따라 저장 값이 달라지고 재수집할 때마다 `updated`가 발생했다. 정상 거래가 해제로 저장되는 경우도 있었다.
