@@ -1,6 +1,6 @@
 # 006. 수집 배치 실행: Spring Batch Job을 별도 프로세스로 실행
 
-- 상태: 초안
+- 상태: 확정
 - 날짜: 2026-10-25
 - 관련: [ADR 004](004-trade-reconcile.md) (구×월 대조, advisory lock), [ADR 005](005-collect-schedule.md) (수집 주기)
 
