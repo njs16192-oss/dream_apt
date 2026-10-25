@@ -20,6 +20,10 @@ spring:
       # 메타데이터 테이블은 Flyway(V4)로 만든다
       initialize-schema: never
 
+# API 문서 (springdoc). 조회 API(public 그룹)는 포트폴리오용으로 운영에서도 공개한다
+springdoc:
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}
 management:
   endpoints:
     web:
@@ -29,6 +33,10 @@ management:
     health:
       show-details: always
 dreamapt:
+  docs:
+    # 관리 API 문서(admin 그룹) 생성 여부. 로컬 프로필에서만 true.
+    # 문서에서 숨겨도 /api/admin/** 엔드포인트 자체는 열려 있다. 실제 보호는 인증(5단계) 또는 배포 시 외부 노출 차단
+    admin-enabled: ${API_DOCS_ADMIN_ENABLED:false}
   data-go-kr:
     base-url: ${DATA_GO_KR_BASE_URL:https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev}
     # 공공데이터포털의 "Decoding" 키 (Encoding 키를 넣으면 이중 인코딩되어 인증 실패)
@@ -52,3 +60,14 @@ dreamapt:
         max-retries: ${COLLECT_RETRY_MAX_RETRIES:3}
         delay: ${COLLECT_RETRY_DELAY:2s}
         multiplier: ${COLLECT_RETRY_MULTIPLIER:2}
+---
+# 로컬 개발 프로필. ./gradlew bootRun은 활성 프로필이 없으면 local로 뜬다 (build.gradle의 spring.profiles.default)
+# application-local.yml은 개인 설정용으로 .gitignore에 있어서, 공유할 로컬 설정은 여기에 둔다
+spring:
+  config:
+    activate:
+      on-profile: local
+dreamapt:
+  docs:
+    # 관리 API 문서(admin 그룹)를 로컬에서만 연다. 문서에서 숨기는 것은 보안이 아니다
+    admin-enabled: true
