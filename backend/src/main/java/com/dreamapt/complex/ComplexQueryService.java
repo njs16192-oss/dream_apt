@@ -66,7 +66,7 @@ public class ComplexQueryService {
                         from == null ? null : from.atDay(1), end.plusMonths(1).atDay(1)).stream()
                 .map(r -> new MonthlyPrice(r.month(), r.medianAmount(), r.count(), period.isProvisional(r.month())))
                 .toList();
-        return MonthlySeries.of(period, months);
+        return MonthlySeries.of(period, from, end, months);
     }
 
     /**

@@ -87,6 +87,35 @@ class RegionQueryServiceIntegrationTest {
     }
 
     @Test
+    void from을_생략하면_to를_포함한_최근_36개월이다() {
+        rows.trade("11710-1", LocalDate.of(2023, 10, 31)).insert();
+        rows.trade("11710-1", LocalDate.of(2023, 11, 1)).insert();
+
+        MonthlySeries<MonthlyVolume> series = service.getMonthlyVolumes("11710", null, null);
+
+        assertThat(series.from()).isEqualTo(YearMonth.of(2023, 11));
+        assertThat(series.to()).isEqualTo(YearMonth.of(2026, 10));
+        assertThat(series.months()).extracting(MonthlyVolume::month).containsExactly(YearMonth.of(2023, 11));
+    }
+
+    @Test
+    void to만_주면_그_달까지_36개월이다() {
+        MonthlySeries<MonthlyVolume> series = service.getMonthlyVolumes("11710", null, YearMonth.of(2025, 12));
+
+        assertThat(series.from()).isEqualTo(YearMonth.of(2023, 1));
+        assertThat(series.to()).isEqualTo(YearMonth.of(2025, 12));
+    }
+
+    @Test
+    void 기간은_최대_120개월이다() {
+        assertThat(service.getMonthlyVolumes("11710", YearMonth.of(2016, 11), YearMonth.of(2026, 10)).from())
+                .isEqualTo(YearMonth.of(2016, 11));
+        assertThatThrownBy(() -> service.getMonthlyVolumes("11710", YearMonth.of(2016, 10), YearMonth.of(2026, 10)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("121개월");
+    }
+
+    @Test
     void 잘못된_기간이나_없는_구면_예외다() {
         assertThatThrownBy(() -> service.getMonthlyVolumes("11710", YearMonth.of(2026, 9), YearMonth.of(2026, 8)))
                 .isInstanceOf(BadRequestException.class);

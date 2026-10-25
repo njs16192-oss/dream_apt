@@ -9,11 +9,14 @@ import java.util.List;
  *
  * @param baseDate        기준일 (서울 날짜)
  * @param provisionalFrom 이 달부터는 집계 중 (provisional = true)
+ * @param from            실제로 적용한 시작 월 (포함). null이면 처음부터
+ * @param to              실제로 적용한 끝 월 (포함)
  * @param months          월 오름차순
  */
-public record MonthlySeries<T>(LocalDate baseDate, YearMonth provisionalFrom, List<T> months) {
+public record MonthlySeries<T>(LocalDate baseDate, YearMonth provisionalFrom, YearMonth from, YearMonth to,
+        List<T> months) {
 
-    public static <T> MonthlySeries<T> of(ReportingPeriod period, List<T> months) {
-        return new MonthlySeries<>(period.baseDate(), period.provisionalFrom(), months);
+    public static <T> MonthlySeries<T> of(ReportingPeriod period, YearMonth from, YearMonth to, List<T> months) {
+        return new MonthlySeries<>(period.baseDate(), period.provisionalFrom(), from, to, months);
     }
 }

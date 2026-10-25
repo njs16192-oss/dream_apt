@@ -23,19 +23,20 @@ public class RegionQueryRepository {
                    count(*) FILTER (WHERE NOT is_bulk) AS cnt,
                    count(*) FILTER (WHERE is_bulk) AS bulk_count
             FROM valid_apt_trade
-            WHERE sgg_cd = :sggCd AND deal_date < :toExclusive
+            WHERE sgg_cd = :sggCd AND deal_date >= :from AND deal_date < :toExclusive
+            GROUP BY 1
+            ORDER BY 1
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
 
-    /** from 이상(null이면 처음부터) toExclusive 미만 계약일의 월별 거래량. */
+    /** from 이상 toExclusive 미만 계약일의 월별 거래량. 기간 제한은 서비스에서 한다. */
     public List<MonthlyVolumeRow> findMonthlyVolumes(String sggCd, LocalDate from, LocalDate toExclusive) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("sggCd", sggCd)
                 .addValue("from", from)
                 .addValue("toExclusive", toExclusive);
-        String sql = MONTHLY_VOLUMES + (from == null ? "" : "  AND deal_date >= :from\n") + "GROUP BY 1\nORDER BY 1\n";
-        return jdbc.query(sql, params, (rs, i) -> new MonthlyVolumeRow(
+        return jdbc.query(MONTHLY_VOLUMES, params, (rs, i) -> new MonthlyVolumeRow(
                 YearMonth.from(rs.getObject("month", LocalDate.class)),
                 rs.getInt("cnt"),
                 rs.getInt("bulk_count")));
