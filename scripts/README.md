@@ -30,6 +30,7 @@ python scripts/analysis/key_collision.py --sgg 11500,11680,11710,11350 --months 
 | `--sgg` | 시군구 코드(LAWD_CD 5자리), 쉼표로 구분 |
 | `--months` | 계약월(DEAL_YMD, YYYYMM), 쉼표로 구분 |
 | `--raw-dir` | 원본 XML 캐시 디렉터리 (기본 `data/raw`) |
+| `--snapshot-dir` | 새로 받은 원본을 조회일별로 남길 디렉터리 (기본 `data/raw-snapshots`) |
 | `--mode` | `summary`(기본): 구×월 요약, 유형별 집계, 그룹 목록, 대표 사례 원본 비교 / `full`: 모든 그룹의 원본 비교 |
 | `--out` | 출력 파일. 없으면 표준 출력 |
 
@@ -37,6 +38,7 @@ python scripts/analysis/key_collision.py --sgg 11500,11680,11710,11350 --months 
 
 - API 응답은 `{raw-dir}/{sgg}_{yyyymm}_p{page}.xml`로 저장되고, 파일이 있으면 API를 다시 호출하지 않는다. 같은 원본으로 몇 번을 돌려도 결과가 같다
 - 조회 시각은 `{raw-dir}/fetched_at.json`에 기록되고, `full` 출력 상단에 표시된다
+- API로 새로 받은 페이지는 `{snapshot-dir}/{조회일 YYYY-MM-DD}/{sgg}_{yyyymm}_p{page}.xml`에도 저장된다. 캐시를 지우고 다시 받아도 이전 조회본이 남아서, 날짜별로 값이 어떻게 채워지는지 비교할 수 있다 (2026-10-25 이전 조회본은 `2026-10-22/11500_202609_p1.xml` 하나만 있음)
 - 최신 데이터로 다시 보려면 해당 XML 파일을 지우고 실행한다. 신고·해제·등기가 계속 반영되므로 조회 시점에 따라 결과가 달라진다
 - `data/`는 `.gitignore`에 들어 있어 커밋되지 않는다
 

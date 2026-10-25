@@ -22,6 +22,7 @@ API_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvc
 PAGE_SIZE = 1000
 MAX_PAGES = 20
 DEFAULT_RAW_DIR = "data/raw"
+DEFAULT_SNAPSHOT_DIR = "data/raw-snapshots"
 
 # 나중에 채워지거나 바뀌는 값. 분류는 이 필드를 뺀 나머지(불변 필드)로 한다.
 MUTABLE_FIELDS = ("cdealType", "cdealDay", "rgstDate", "aptDong")
@@ -77,8 +78,11 @@ def save_fetched_at(raw_dir, fetched_at):
     path.write_text(json.dumps(fetched_at, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def load_records(raw_dir, sgg, ym, fetched_at):
-    """한 구·월의 전체 레코드. 캐시된 페이지는 다시 호출하지 않는다."""
+def load_records(raw_dir, sgg, ym, fetched_at, snapshot_dir=None):
+    """한 구·월의 전체 레코드. 캐시된 페이지는 다시 호출하지 않는다.
+
+    snapshot_dir가 있으면 새로 받은 페이지를 {snapshot_dir}/{조회일}/에도 남긴다.
+    """
     records = []
     for page in range(1, MAX_PAGES + 1):
         path = raw_path(raw_dir, sgg, ym, page)
@@ -89,7 +93,12 @@ def load_records(raw_dir, sgg, ym, fetched_at):
             parse_page(data, path.name)  # 실패 응답은 저장하지 않는다
             raw_dir.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-            fetched_at.setdefault(f"{sgg}_{ym}", datetime.now().astimezone().isoformat(timespec="seconds"))
+            now = datetime.now().astimezone()
+            if snapshot_dir:
+                day_dir = snapshot_dir / now.date().isoformat()
+                day_dir.mkdir(parents=True, exist_ok=True)
+                (day_dir / path.name).write_bytes(data)
+            fetched_at.setdefault(f"{sgg}_{ym}", now.isoformat(timespec="seconds"))
             print(f"조회: {path.name}", file=sys.stderr)
         items, total = parse_page(data, path.name)
         records.extend(items)
@@ -424,6 +433,8 @@ def main():
     parser.add_argument("--sgg", required=True, help="시군구 코드, 쉼표로 구분 (예: 11500,11680)")
     parser.add_argument("--months", required=True, help="계약월 YYYYMM, 쉼표로 구분 (예: 202607,202608)")
     parser.add_argument("--raw-dir", default=DEFAULT_RAW_DIR, help=f"원본 XML 캐시 디렉터리 (기본 {DEFAULT_RAW_DIR})")
+    parser.add_argument("--snapshot-dir", default=DEFAULT_SNAPSHOT_DIR,
+                        help=f"새로 받은 원본을 조회일별로 남길 디렉터리 (기본 {DEFAULT_SNAPSHOT_DIR})")
     parser.add_argument("--mode", choices=("summary", "full"), default="summary",
                         help="summary: 본문용 요약, full: 부록용 전체 그룹 비교")
     parser.add_argument("--out", help="출력 파일 (없으면 표준 출력)")
@@ -432,6 +443,7 @@ def main():
     sys.stderr.reconfigure(encoding="utf-8")
 
     raw_dir = Path(args.raw_dir)
+    snapshot_dir = Path(args.snapshot_dir)
     sggs = [s.strip() for s in args.sgg.split(",") if s.strip()]
     months = [m.strip() for m in args.months.split(",") if m.strip()]
 
@@ -440,7 +452,7 @@ def main():
     for sgg in sggs:
         sgg_records = []
         for ym in months:
-            records = load_records(raw_dir, sgg, ym, fetched_at)
+            records = load_records(raw_dir, sgg, ym, fetched_at, snapshot_dir)
             combos.append({"sgg": sgg, "ym": ym, "total": len(records)})
             groups.extend(find_groups(records))
             sgg_records.extend(records)
