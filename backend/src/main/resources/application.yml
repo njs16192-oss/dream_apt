@@ -39,3 +39,16 @@ dreamapt:
   collect:
     missing-ratio-limit: ${COLLECT_MISSING_RATIO_LIMIT:0.2}
     missing-min-count: ${COLLECT_MISSING_MIN_COUNT:5}
+    # 수집 배치 (ADR 005, 006)
+    batch:
+      # 기준일("이번 달")을 정하는 시간대. k8s 노드는 UTC라 명시한다
+      zone: ${COLLECT_ZONE:Asia/Seoul}
+      backfill-start: ${COLLECT_BACKFILL_START:2020-01}
+      # backfill 1회 실행당 최대 API 호출 수 (일일 한도 1만 회)
+      backfill-max-calls: ${COLLECT_BACKFILL_MAX_CALLS:2000}
+      # 시작 후 이 시간이 지난 STARTED 실행은 강제 종료로 남은 기록으로 본다. CronJob activeDeadlineSeconds는 이보다 짧게
+      stale-running-after: ${COLLECT_STALE_RUNNING_AFTER:2h}
+      retry:
+        max-retries: ${COLLECT_RETRY_MAX_RETRIES:3}
+        delay: ${COLLECT_RETRY_DELAY:2s}
+        multiplier: ${COLLECT_RETRY_MULTIPLIER:2}
