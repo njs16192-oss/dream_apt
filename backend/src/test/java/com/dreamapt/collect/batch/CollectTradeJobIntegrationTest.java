@@ -65,6 +65,9 @@ class CollectTradeJobIntegrationTest {
     ApiRequestThrottle throttle;
 
     @Autowired
+    CollectJobLauncher launcher;
+
+    @Autowired
     JdbcTemplate jdbc;
 
     @MockitoBean
@@ -96,6 +99,7 @@ class CollectTradeJobIntegrationTest {
 
         assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         assertThat(execution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.COMPLETED.getExitCode());
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
         assertThat(count("status = 'SUCCESS'")).isEqualTo(150);
         assertThat(jdbc.queryForObject("SELECT count(DISTINCT job_execution_id) FROM collect_history", Long.class))
                 .isEqualTo(1);
@@ -111,6 +115,7 @@ class CollectTradeJobIntegrationTest {
 
         assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         assertThat(execution.getExitStatus().getExitCode()).isEqualTo(CollectExitStatus.COMPLETED_WITH_FAILURES);
+        assertThat(CollectJobExitCodes.of(execution)).isEqualTo(3);
         assertThat(count("status = 'SUCCESS'")).isEqualTo(148);
         assertThat(jdbc.queryForList("SELECT sgg_cd || '×' || deal_ym || ' ' || failure_reason || ' calls=' || api_calls"
                 + " FROM collect_history WHERE status = 'FAILED' ORDER BY 1", String.class))
@@ -127,6 +132,7 @@ class CollectTradeJobIntegrationTest {
 
         assertThat(execution.getStatus()).isEqualTo(BatchStatus.FAILED);
         assertThat(execution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.FAILED.getExitCode());
+        assertThat(CollectJobExitCodes.of(execution)).isEqualTo(2);
         assertThat(count("true")).isEqualTo(5);
         assertThat(count("status = 'FAILED'")).isEqualTo(1);
     }
@@ -138,6 +144,8 @@ class CollectTradeJobIntegrationTest {
         // 1차: 2026-10의 25개 구, 2026-09의 5개 구까지 30개. 11110×202609(26번째)는 실패
         JobExecution first = run(CollectMode.BACKFILL);
         assertThat(first.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        // 상한에 걸려 멈춘 것은 의도한 동작이라 0 (1차에서 실패한 구×월이 있어 여기서는 3)
+        assertThat(CollectJobExitCodes.of(first)).isEqualTo(3);
         assertThat(count("true")).isEqualTo(30);
         assertThat(count("status = 'SUCCESS'")).isEqualTo(29);
         assertThat(summary(first)).containsEntry("summary.remaining", 20).containsEntry("summary.callLimitReached", true);
@@ -164,6 +172,7 @@ class CollectTradeJobIntegrationTest {
 
         assertThat(execution.getStatus()).isEqualTo(BatchStatus.STOPPED);
         assertThat(execution.getExitStatus().getExitCode()).isEqualTo(CollectExitStatus.ALREADY_RUNNING);
+        assertThat(CollectJobExitCodes.of(execution)).isEqualTo(4);
         assertThat(execution.getStepExecutions()).isEmpty();
         assertThat(count("true")).isZero();
     }
@@ -186,6 +195,40 @@ class CollectTradeJobIntegrationTest {
 
         assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         assertThat(count("true")).isEqualTo(150);
+    }
+
+    @Test
+    void backfill이_실패_없이_상한에_걸려_멈추면_종료_코드는_0이다() {
+        JobExecution execution = run(CollectMode.BACKFILL);
+
+        assertThat(summary(execution)).containsEntry("summary.callLimitReached", true);
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+    }
+
+    @Test
+    void 같은_날_같은_모드를_다시_실행할_수_있다() {
+        LocalDate today = LocalDate.of(2026, 10, 25);
+
+        JobExecution first = launcher.run(CollectMode.WEEKLY, today);
+        JobExecution second = launcher.run(CollectMode.WEEKLY, today);
+
+        assertThat(first.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(second.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(second.getJobInstance().getId()).isNotEqualTo(first.getJobInstance().getId());
+    }
+
+    @Test
+    void 관리_API용_비동기_실행은_바로_돌아오고_나중에_끝난다() throws InterruptedException {
+        JobExecution started = launcher.startAsync(CollectMode.WEEKLY, null);
+
+        JobExecution finished = jobRepository.getJobExecution(started.getId());
+        for (int i = 0; i < 100 && finished.isRunning(); i++) {
+            Thread.sleep(100);
+            finished = jobRepository.getJobExecution(started.getId());
+        }
+        assertThat(finished.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        // baseDate가 없으면 서울 기준 오늘로 채워서 기록한다
+        assertThat(finished.getJobParameters().getString(CollectJobParameters.BASE_DATE)).isNotNull();
     }
 
     private JobExecution run(CollectMode mode) {
