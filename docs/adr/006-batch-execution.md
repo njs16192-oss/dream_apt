@@ -9,11 +9,11 @@
 | 항목 | 결정 |
 |---|---|
 | 실행 방식 | Spring Batch Job `collectTradeJob` 하나. 모드(`daily`/`weekly`/`backfill`)와 기준일은 Job 파라미터 |
-| 실행 위치 | 웹 앱과 같은 이미지를 `batch` 프로필로 실행. Job 하나를 끝내고 종료한다 → k8s CronJob (8단계) |
+| 실행 위치 | 웹 앱과 같은 이미지를 `batch` 프로필로 실행. 전용 runner가 Job 하나를 실행하고 종료 코드와 함께 끝난다 → k8s CronJob (8단계) |
 | 웹 앱 | Job 자동 실행 안 함 (`spring.batch.job.enabled=false`). 관리 API로만 수동 실행 |
 | Job 구조 | Tasklet step 1개. 구×월을 하나씩 처리하고, 하나의 실패는 기록하고 다음으로 넘어감 |
 | 이어하기 | Spring Batch restart 대신 `collect_history`(구×월별 최신 상태)를 기준으로 |
-| JobInstance | `run.id`를 매번 올려 실행마다 새 인스턴스 |
+| JobInstance | 실행마다 고유한 `run.id`(시작 시각 ms)를 넣어 새 인스턴스. incrementer는 쓰지 않음 |
 | 메타데이터 | `BATCH_*` 테이블을 Flyway 마이그레이션으로 관리 (`initialize-schema=never`) |
 | 종료 코드 | 0 성공 / 1 시작 실패 / 2 Job 실패 / 3 일부 구×월 실패 / 4 다른 실행 진행 중 |
 | 동시 실행 | **같은 모드끼리만** 막음: 관리 API 409, Job 시작 리스너, CronJob `concurrencyPolicy: Forbid`. 시작 후 2시간 지난 `STARTED`는 실행 중으로 보지 않음 |
@@ -102,7 +102,9 @@ Spring Batch의 이력 관리는 얻지만, B의 "웹 서버 안에서 돈다"�
   - 이어할 단위는 step이 아니라 구×월이다. 그리고 "이미 성공했는가"는 Job 실행과 무관하게 데이터의 상태다 (관리 API로 수동 수집한 구×월도 포함)
 - 그래서 구×월별 최신 상태를 `collect_history`(PK `sgg_cd, deal_ym`)에 기록하고, `backfill`은 성공 기록이 없는 구×월만 처리한다
 - `collect_history`는 실행별 로그가 아니라 구×월당 1행이다. 실행별 이력은 `BATCH_*`가 맡는다. 실패하면 상태·사유·시도 시각만 바꾸고, 마지막 성공 시각과 결과 건수는 유지한다 (화면의 "데이터 기준일"에 쓴다)
-- Spring Batch는 같은 식별 파라미터로 이미 완료된 JobInstance를 다시 실행하지 못하게 한다. 같은 날 `daily`를 두 번 돌리거나 `backfill`을 여러 번 이어 돌려야 하므로, `run.id`를 매번 올려 실행마다 새 JobInstance로 만든다
+- Spring Batch는 같은 식별 파라미터로 이미 완료된 JobInstance를 다시 실행하지 못하게 한다. 같은 날 `daily`를 두 번 돌리거나 `backfill`을 여러 번 이어 돌려야 하므로, 실행마다 고유한 `run.id`(시작 시각 ms)를 넣어 새 JobInstance로 만든다
+  - `RunIdIncrementer`를 쓰지 않은 이유: Spring Batch 6.0.5의 `JobOperator.start(job, parameters)`는 Job에 incrementer가 있으면 넘긴 파라미터를 버리고(경고 로그만 남김) `startNextInstance`를 실행한다. 그러면 `mode`·`baseDate`가 사라진다
+  - `baseDate`를 생략해도 실행할 때 서울 기준 오늘로 채워서 파라미터에 남긴다. 나중에 어떤 기준일로 돌았는지 메타데이터에서 바로 보인다
 
 ### ④ 메타데이터 테이블은 Flyway로
 - 스키마 변경은 Flyway로만 한다는 프로젝트 규칙을 따른다. Spring Batch가 jar에 넣어 제공하는 `schema-postgresql.sql`을 마이그레이션 파일로 복사하고, 자동 초기화는 끈다 (`spring.batch.jdbc.initialize-schema=never`)
@@ -111,11 +113,13 @@ Spring Batch의 이력 관리는 얻지만, B의 "웹 서버 안에서 돈다"�
 ### ⑤ 실행 경로
 | 경로 | 방법 |
 |---|---|
-| 로컬 명령 | `./gradlew bootRun --args='--spring.profiles.active=batch mode=daily [baseDate=2026-10-25]'` |
-| 관리 API | `POST /api/admin/collect/jobs?mode=daily[&baseDate=...]` → 202 + 실행 id (비동기), `GET /api/admin/collect/jobs/{id}`로 상태 조회 |
+| 로컬 명령 | `./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily [--baseDate=2026-10-25]'` (종료 코드를 보려면 `java -jar`로 실행. Gradle을 거치면 Gradle의 종료 코드가 된다) |
+| 관리 API | `POST /api/admin/collect/jobs?mode=daily[&baseDate=...]` → 202 + 실행 id (비동기), `GET /api/admin/collect/jobs/{id}`로 상태·요약 조회, `POST /api/admin/collect/jobs/{id}/recover`로 오래된 `STARTED` 기록 정리 |
 | 운영 (8단계) | k8s CronJob이 같은 이미지를 `batch` 프로필로 실행 |
 
 - 웹 앱은 Job을 자동 실행하지 않는다 (`spring.batch.job.enabled=false`). `batch` 프로필만 웹 서버 없이 기동해서 Job을 실행하고 종료한다
+- `batch` 프로필에서도 Boot의 자동 실행(`spring.batch.job.enabled=true`)은 쓰지 않고 전용 runner(`CollectJobCommandLineRunner`)가 실행한다. Boot의 runner는 인자를 그대로 파라미터로 넘겨서 `run.id`를 넣을 수 없고, 종료 코드도 BatchStatus 순번이라 일부 실패를 구분하지 못한다
+- 관리 API의 비동기 실행은 별도 스레드에서 돈다. 모드가 3개라 동시에 최대 3개까지 돈다 (같은 모드는 ⑦에서 막는다)
 - 관리 API는 인증이 없으므로 외부 배포 전에 보호 장치가 필요하다 (기존 수동 수집 API와 같음)
 
 ### ⑥ 종료 코드
@@ -133,7 +137,7 @@ CronJob은 컨테이너 종료 코드가 0이 아니면 실패로 본다. 종료
 - **자동 재실행은 하지 않는다.** 8단계에서 CronJob을 `backoffLimit: 0`으로 둔다. 실패한 구×월은 다음 일일 수집(또는 다음 `backfill`)에서 어차피 다시 시도된다. 바로 재실행하면 성공한 구×월까지 다시 받아 호출 한도만 쓴다. 특히 한도 초과(2)는 재실행해도 다시 실패한다
 - `backfill`이 호출 상한에 걸려 멈추는 것은 의도한 동작이라 0이다. 남은 대상 수는 실행 요약에 남는다
 - 중복 실행(4)은 `STOPPED`로 남긴다. `COMPLETED`로 두면 메타데이터에서 성공한 실행으로 보여, "최근 성공 실행" 같은 모니터링 지표가 아무것도 수집하지 않은 실행으로 오염된다
-- Spring Boot 기본 종료 코드 생성기는 BatchStatus 순번을 쓰므로(`COMPLETED`면 0) 일부 실패를 구분하지 못한다. ExitStatus를 보고 위 표대로 반환하는 생성기로 바꾼다
+- Spring Boot 기본 종료 코드 생성기는 BatchStatus 순번을 쓰므로(`COMPLETED`면 0) 일부 실패를 구분하지 못한다. 전용 runner가 ExitStatus를 보고 위 표대로 종료 코드를 정한다 (`CollectJobExitCodes`)
 
 ### ⑦ 동시 실행 방지: 같은 모드끼리만
 **같은 모드**(`mode` 파라미터)의 실행은 한 번에 하나만 돈다. 모드가 다르면 동시에 돌아도 된다.
@@ -171,3 +175,4 @@ CronJob은 컨테이너 종료 코드가 0이 아니면 실패로 본다. 종료
 - 실행 이력은 `BATCH_*`, 구×월별 데이터 상태는 `collect_history`에서 본다
 - CronJob은 종료 코드로 성공(0)·일부 실패(3)·실패(2)·같은 모드 중복(4)을 구분할 수 있다
 - 대가: Spring Batch 개념과 메타데이터 스키마를 관리해야 한다. 배치 전용 실행 경로(프로필, 종료 코드)가 생긴다
+- 실행 요약(`summary.*`)은 step의 ExecutionContext에 있는데, Spring Batch 기본 직렬화(Java 직렬화 + Base64)라 SQL로는 읽을 수 없다. 지금은 관리 API 조회로 본다. SQL·대시보드에서 직접 봐야 하면 JSON 직렬화(Jackson)로 바꾸는 것을 검토한다

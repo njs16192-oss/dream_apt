@@ -20,6 +20,9 @@ docs/troubleshooting.md
 ## 로컬 실행
 - DB: `docker compose -f infra/docker-compose.yml up -d` (db/user/pw 모두 dreamapt, 5432)
 - Backend: `cd backend && ./gradlew bootRun` (8080)
+- 수집 배치 (docs/adr/006-batch-execution.md): `cd backend && ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`
+  - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
+  - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
 - Frontend: `cd frontend && npm run dev` (5173, `/api`는 8080으로 프록시)
 - 개발 환경은 Windows + VS Code
 
