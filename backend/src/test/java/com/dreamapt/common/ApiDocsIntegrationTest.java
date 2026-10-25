@@ -1,6 +1,7 @@
 package com.dreamapt.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,6 +79,30 @@ class ApiDocsIntegrationTest {
                 assertThat(body(path)).contains("\"/api/ping\"")
                         .doesNotContain("/api/admin", "CollectResult", "CollectJobResponse");
             }
+        }
+
+        @Test
+        void 조회_API_문서에_태그와_단위_일괄_거래_provisional_설명이_있다() throws Exception {
+            String complexes = "$.paths['/api/complexes']";
+            String schemas = "$.components.schemas";
+            mockMvc.perform(get("/v3/api-docs/public"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath(complexes + ".get.tags[0]").value("단지"))
+                    .andExpect(jsonPath(complexes + ".get.summary").value("단지 검색"))
+                    .andExpect(jsonPath("$.paths['/api/complexes/{aptSeq}/areas/{areaGroup}/monthly'].get.summary")
+                            .value("면적 그룹 월별 가격"))
+                    .andExpect(jsonPath("$.paths['/api/regions/{sggCd}/monthly'].get.tags[0]").value("지역"))
+                    .andExpect(jsonPath(schemas + ".MonthlyPrice.properties.month.type").value("string"))
+                    .andExpect(jsonPath(schemas + ".MonthlyPrice.properties.medianAmount.description")
+                            .value(containsString("만원")))
+                    .andExpect(jsonPath(schemas + ".MonthlyPrice.properties.count.description")
+                            .value(containsString("일괄 거래 제외")))
+                    .andExpect(jsonPath(schemas + ".MonthlyPrice.properties.provisional.description")
+                            .value(containsString("집계 중")))
+                    .andExpect(jsonPath(schemas + ".TradeItem.properties.bulk.description")
+                            .value(containsString("10건 이상")))
+                    .andExpect(jsonPath(schemas + ".AreaGroupSummary.properties.lastDealAmount.description")
+                            .value(containsString("일괄 거래 제외")));
         }
 
         @Test
