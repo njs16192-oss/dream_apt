@@ -23,3 +23,7 @@ application-local.yml
 Thumbs.db
 # 분석용 원본 데이터 (scripts/analysis)
 data/
+
+# Python
+__pycache__/
+*.pyc

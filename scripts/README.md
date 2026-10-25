@@ -30,6 +30,7 @@ python scripts/analysis/key_collision.py --sgg 11500,11680,11710,11350 --months 
 | `--sgg` | 시군구 코드(LAWD_CD 5자리), 쉼표로 구분 |
 | `--months` | 계약월(DEAL_YMD, YYYYMM), 쉼표로 구분 |
 | `--raw-dir` | 원본 XML 캐시 디렉터리 (기본 `data/raw`) |
+| `--snapshot-dir` | 새로 받은 원본을 조회일별로 남길 디렉터리 (기본 `data/raw-snapshots`) |
 | `--mode` | `summary`(기본): 구×월 요약, 유형별 집계, 그룹 목록, 대표 사례 원본 비교 / `full`: 모든 그룹의 원본 비교 |
 | `--out` | 출력 파일. 없으면 표준 출력 |
 
@@ -37,6 +38,7 @@ python scripts/analysis/key_collision.py --sgg 11500,11680,11710,11350 --months 
 
 - API 응답은 `{raw-dir}/{sgg}_{yyyymm}_p{page}.xml`로 저장되고, 파일이 있으면 API를 다시 호출하지 않는다. 같은 원본으로 몇 번을 돌려도 결과가 같다
 - 조회 시각은 `{raw-dir}/fetched_at.json`에 기록되고, `full` 출력 상단에 표시된다
+- API로 새로 받은 페이지는 `{snapshot-dir}/{조회일 YYYY-MM-DD}/{sgg}_{yyyymm}_p{page}.xml`에도 저장된다. 캐시를 지우고 다시 받아도 이전 조회본이 남아서, 날짜별로 값이 어떻게 채워지는지 비교할 수 있다 (2026-10-25 이전 조회본은 `2026-10-22/11500_202609_p1.xml` 하나만 있음)
 - 최신 데이터로 다시 보려면 해당 XML 파일을 지우고 실행한다. 신고·해제·등기가 계속 반영되므로 조회 시점에 따라 결과가 달라진다
 - `data/`는 `.gitignore`에 들어 있어 커밋되지 않는다
 
@@ -60,3 +62,28 @@ python scripts/analysis/key_collision.py --sgg 11500,11680,11710,11350 --months 
 - 병합 건수는 Σ(그룹 크기 − 1)로, 현재 수집 코드(`TradeUpsertService.mergeSameKey`)가 합치는 건수와 같다
 - 그룹마다 레코드끼리 값이 다른 가변 필드를 따로 표시하고, (b)는 `aptDong`으로 레코드를 구분할 수 있는지 `rgstDate`와 함께 집계한다
 - 정황 판단(일괄 매매인지 등)은 하지 않는다. 판단 근거로 같은 단지·같은 날 거래 수, 매도/매수 구분, 거래 유형을 함께 출력한다
+
+## analysis/data_lag.py — 계약 → 등기·해제 지연 분석
+
+계약일과 나중에 채워지는 등기일(`rgstDate`)·해제일(`cdealDay`)의 간격을 재고, 조회일이 다른 두 원본을 비교해 사건 날짜와 API 반영 사이의 시차를 본다. 수집 재조회 기간을 정하는 근거 자료다.
+결과는 [docs/analysis/2026-10-data-lag.md](../docs/analysis/2026-10-data-lag.md)에 정리되어 있다.
+
+요구 사항과 원본 캐시는 `key_collision.py`와 같다 (같은 `data/raw` 캐시와 `load_records()`를 쓴다).
+
+```bash
+python scripts/analysis/data_lag.py --sgg 11500,11680,11710,11350 \
+  --months 202507,202508,202509,202607,202608,202609 \
+  --before-snapshot data/raw-snapshots/2026-10-22
+```
+
+| 옵션 | 설명 |
+|---|---|
+| `--sgg`, `--months`, `--raw-dir`, `--snapshot-dir`, `--out` | `key_collision.py`와 같음 |
+| `--before-snapshot` | 반영 시차 비교용 이전 원본 디렉터리. 없으면 반영 시차 표를 생략한다. 이 디렉터리는 읽기만 하고 API를 호출하지 않는다 |
+| `--before-at` | 이전 원본 조회일 `YYYY-MM-DD` (기본: `--before-snapshot` 디렉터리 이름) |
+| `--compare` | 비교할 구·월 `{sgg}_{yyyymm}` (기본 `11500_202609`). `--sgg`·`--months`에 포함되어야 한다 |
+
+- 조회 시점까지 12개월 이상 지난 계약월을 기준 분포로 쓰고, 그보다 최근 계약월은 아직 덜 채워진 상태라 참고 열로 따로 낸다
+- 지연은 두 단위로 낸다: 계약일부터 일수(30일 구간), 계약월 기준 오프셋(사건월 − 계약월)
+- 두 원본 비교는 ADR 004 대조 규칙(`TradeReconciler`)을 따른다: 키로 묶고, 그룹 안에서 정확 일치 → "빈 값 → 채워짐" 최대 매칭. 같은 레코드로 채워질 수 있는 이전 행이 여럿이고 그 행들의 상태가 다르면 "모호"로 표시한다
+- 반영 시차는 `[이전 조회일 − 사건일, 이후 조회일 − 사건일]` 범위로 표시한다
