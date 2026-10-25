@@ -19,7 +19,8 @@ docs/troubleshooting.md
 
 ## 로컬 실행
 - DB: `docker compose -f infra/docker-compose.yml up -d` (db/user/pw 모두 dreamapt, 5432)
-- Backend: `cd backend && ./gradlew bootRun` (8080)
+- Backend: `cd backend && ./gradlew bootRun` (8080). 활성 프로필을 안 주면 `local` 프로필 (관리 API 문서 켜짐)
+  - API 문서: `http://localhost:8080/swagger-ui.html` (public 그룹은 운영에서도 공개, admin 그룹은 `API_DOCS_ADMIN_ENABLED=true`일 때만)
 - 수집 배치 (docs/adr/006-batch-execution.md): `cd backend && ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`
   - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
   - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
