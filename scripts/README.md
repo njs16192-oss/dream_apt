@@ -87,3 +87,28 @@ python scripts/analysis/data_lag.py --sgg 11500,11680,11710,11350 \
 - 지연은 두 단위로 낸다: 계약일부터 일수(30일 구간), 계약월 기준 오프셋(사건월 − 계약월)
 - 두 원본 비교는 ADR 004 대조 규칙(`TradeReconciler`)을 따른다: 키로 묶고, 그룹 안에서 정확 일치 → "빈 값 → 채워짐" 최대 매칭. 같은 레코드로 채워질 수 있는 이전 행이 여럿이고 그 행들의 상태가 다르면 "모호"로 표시한다
 - 반영 시차는 `[이전 조회일 − 사건일, 이후 조회일 − 사건일]` 범위로 표시한다
+
+## analysis/view_analysis.py — 조회 설계 전 데이터 분석 (면적 묶기, 일괄 거래, 단지 분포)
+
+로컬 DB(`apt_trade`, `apt_complex`)를 읽어 면적 묶기 후보 규칙, 일괄 거래 판별 기준 후보, 단지별 거래 수 분포를 집계한다. 3단계(조회 API + 화면) 설계의 근거 자료다.
+결과는 [docs/analysis/2026-10-view-analysis.md](../docs/analysis/2026-10-view-analysis.md)에 정리되어 있다.
+
+### 요구 사항
+
+- Python 3.10 이상, 표준 라이브러리만 사용
+- 로컬 DB 실행 중 (`docker compose -f infra/docker-compose.yml up -d`). DB 드라이버 없이 `psql --csv` 출력을 읽는다. SELECT만 실행한다
+
+```bash
+python scripts/analysis/view_analysis.py --out data/view-detail.md
+```
+
+| 옵션 | 설명 |
+|---|---|
+| `--psql` | psql 실행 명령 (기본 `docker exec -i dreamapt-postgres psql -U dreamapt -d dreamapt`) |
+| `--out` | 출력 파일. 없으면 표준 출력 |
+
+- 출력은 분석 문서의 "상세" 절이다. 요약·한계는 직접 작성한다
+- 모집단은 유효 거래(`cancelled = false AND missing_since IS NULL`)다. 해제 비율만 해제 거래를 포함해 계산한다
+- 면적은 0.01㎡ 단위 정수로 다룬다. R1(정수 반올림)은 HALF_UP, R3(근접 묶기)는 단지 안 면적을 정렬해 이웃한 값의 차이가 임계값 미만이면 잇는다
+- `dealing_gbn`은 2021-11 이후, `buyer_gbn`·`seller_gbn`은 2024-01 이후 계약분에만 값이 있어서, 그 필드를 쓰는 집계는 해당 기간만 센다
+- DB가 바뀌면 (수집이 돌면) 결과가 달라진다. 같은 DB 상태에서는 몇 번을 돌려도 결과가 같다
