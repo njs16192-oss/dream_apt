@@ -117,6 +117,24 @@ PostgreSQL은 윈도 함수가 있는 뷰(서브쿼리)에 바깥 조건을 밀�
 - **결정: B로 일반 뷰를 만든다.** 대표 쿼리 최대 67ms로 전환 기준(100ms) 안이다
 - **남은 위험**: 2번의 남은 비용은 `apt_trade` 전체 병렬 seq scan(프로세스 3개가 나눠 읽어 약 17ms)과 정렬·윈도 계산(약 30ms)이다. 구 하나를 조회해도 테이블 전체를 읽으므로, **수집 지역이 늘면 구 하나의 조회 시간도 전체 데이터 크기에 비례해 늘어난다.** 전국으로 넓히면 이 쿼리부터 다시 잰다
 
+#### 구현 후 측정: 실제 Repository 쿼리 (2026-10-25, 같은 로컬 DB, V7 적용 후)
+
+`ComplexQueryRepository`·`RegionQueryRepository`의 SQL을 값만 넣어 그대로 `EXPLAIN (ANALYZE, BUFFERS)`로 5번씩 실행했다 (ms).
+
+| # | 쿼리 (Repository 메서드) | 대상 | 실행 시간 |
+|---|---|---|---:|
+| 1 | 면적 그룹 월별 중앙값·건수 (`findMonthlyPrices`), 전 기간 | 파크리오 85 | 2.0–3.9 |
+| 2 | 구 월별 거래량 (`findMonthlyVolumes`), 전 기간 | 노원구 | **65–88** (첫 실행 88) |
+| 2′ | 같은 쿼리, 최근 3년 | 노원구 | 41–46 |
+| 3 | 거래 목록 첫 페이지 20건 (`findTrades`) + 전체 건수 (`countTrades`) | 파크리오 | 2.1–2.3 + 0.4–0.5 |
+| 4 | 면적 그룹 요약 (`findAreaGroups`, 일괄 거래 비율도 여기서 계산) | 파크리오 / 에드가휘경 | 2.4–5.2 / 0.4–0.5 |
+| – | 단지 검색 (`search`) | "현대"(405단지 후보) / "롯"(1글자) / "헬리오 시티" | 21–29 / 14–17 / 0.3–0.6 |
+
+- **조건이 뷰 안으로 들어간다 (구 월별 거래량).** `sgg_cd = '11350'`은 `apt_complex` 스캔의 Filter로, `deal_date` 조건은 `apt_trade` 스캔의 Filter로 들어가고 WindowAgg는 그 결과(2′ 기준 16,318행)에만 계산된다
+- **generic plan에서도 들어간다.** JDBC 드라이버는 같은 쿼리를 여러 번 실행하면 서버 쪽 prepared statement로 바꾸고, PostgreSQL은 파라미터 값을 보지 않는 generic plan을 쓸 수 있다. `plan_cache_mode = force_generic_plan`으로 `PREPARE`/`EXECUTE`해 보니 `sgg_cd = $1`, `deal_date < $2 AND deal_date >= $3`이 그대로 들어갔다. 이때는 `idx_trade_group` 인덱스 스캔으로 바뀌어 2′가 32–33ms로 오히려 빨랐다
+- **검색의 최근 거래 수는 단지마다 윈도를 계산한다.** `LATERAL` 안의 `v.apt_seq = c.apt_seq`(바깥 단지 참조)가 뷰 안으로 들어가서, 후보 단지마다 그 단지 거래(평균 11행)에만 윈도를 계산한다. "현대"는 후보 405단지 × 약 0.02ms다
+- 모두 100ms 기준 안이라 일반 뷰를 유지한다. 가장 여유가 적은 것은 구 월별 거래량 전 기간(첫 실행 88ms)이다. 화면이 기본으로 최근 몇 년만 요청하면(2′) 여유가 커진다
+
 전환 기준(변경 없음): 위 대표 쿼리 중 하나라도 실행 시간 **100ms를 넘으면** materialized view로 바꾼다. 바꾸면 수집 Job이 끝난 뒤 `REFRESH MATERIALIZED VIEW CONCURRENTLY`로 갱신한다 (unique 인덱스 필요). 그 전에 구 단위 쿼리용 인덱스(예: `apt_trade`에 구 코드 컬럼 추가 후 인덱스)로 해결되는지 먼저 본다.
 
 ### ④ 월별 가격: 중앙값 + 거래 건수
@@ -126,6 +144,7 @@ PostgreSQL은 윈도 함수가 있는 뷰(서브쿼리)에 바깥 조건을 밀�
 - **응답은 만원 단위 정수로 HALF_UP 반올림한다** (x.5 → 올림). 금액은 양수라서 "0에서 먼 쪽"과 같다
   - **주의**: `percentile_cont`는 `double precision`을 돌려주고, PostgreSQL의 `ROUND(double precision)`은 **짝수 쪽으로 반올림(half-to-even)** 한다. 로컬 확인: 100,000·100,005의 중앙값 100,002.5가 `ROUND(...)`로 **100,002**, `ROUND(...::numeric)`으로 **100,003**이다. 그래서 반드시 `numeric`으로 바꾼 뒤 반올림한다
   - SQL: `ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY deal_amount))::numeric)::int`
+  - **반올림은 SQL에서만 한다.** Java는 정수(`int`)로 받아 그대로 응답한다. Java에서 `double`을 받아 `BigDecimal`로 반올림하면 같은 규칙을 두 곳에서 지켜야 하고, 한쪽만 바뀌면 값이 어긋난다
   - 짝수 건의 두 금액이 둘 다 정수(만원)라서, 평균의 소수 부분은 0 또는 0.5뿐이다. 부동소수 오차로 x.5가 x.4999…가 되는 경우는 없다
 - **거래 건수를 같이 준다.** 1건짜리 달의 중앙값은 그 거래 하나의 금액이다. 화면이 건수를 보고 신뢰도를 표시하거나 점 크기를 다르게 할 수 있게 한다. 몇 건 미만은 숨기는 식의 판단은 API가 하지 않는다
 
