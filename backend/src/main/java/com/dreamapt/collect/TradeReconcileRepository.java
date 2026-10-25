@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -145,7 +145,7 @@ public class TradeReconcileRepository {
                 rs.getBoolean("cancelled"),
                 rs.getObject("cancel_date", LocalDate.class),
                 rs.getObject("registered_date", LocalDate.class),
-                rs.getObject("missing_since", LocalDateTime.class));
+                rs.getObject("missing_since", OffsetDateTime.class));
     }
 
     private static SqlParameterSource complexParams(TradeRecord r) {

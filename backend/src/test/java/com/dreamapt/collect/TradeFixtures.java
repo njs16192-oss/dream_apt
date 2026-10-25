@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.springframework.core.io.ClassPathResource;
@@ -55,7 +55,7 @@ final class TradeFixtures {
         return existing(id, r, null);
     }
 
-    static ExistingTrade existing(long id, TradeRecord r, LocalDateTime missingSince) {
+    static ExistingTrade existing(long id, TradeRecord r, OffsetDateTime missingSince) {
         return new ExistingTrade(id, r.aptSeq(), r.dealDate(), r.dealAmount(), r.excluUseAr(), r.floor(),
                 r.aptDong(), r.buyerGbn(), r.sellerGbn(), r.dealingGbn(), r.agentSggNm(),
                 r.cancelled(), r.cancelDate(), r.registeredDate(), missingSince);

@@ -2,7 +2,7 @@ package com.dreamapt.collect;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 대조 대상인 DB의 거래 행. 수집한 구×월 범위의 행을 missing 행까지 포함해서 읽는다.
@@ -22,7 +22,7 @@ public record ExistingTrade(
         boolean cancelled,
         LocalDate cancelDate,
         LocalDate registeredDate,
-        LocalDateTime missingSince) {
+        OffsetDateTime missingSince) {
 
     public boolean missing() {
         return missingSince != null;

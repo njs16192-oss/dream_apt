@@ -13,7 +13,8 @@ import static com.dreamapt.collect.TradeFixtures.withLateValues;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -186,7 +187,7 @@ class TradeReconcilerTest {
         assertThat(gone.missing()).extracting(ExistingTrade::id).containsExactly(2L);
         assertThat(gone.newlyMissing()).hasSize(1);
 
-        LocalDateTime since = LocalDateTime.of(2026, 10, 25, 12, 0);
+        OffsetDateTime since = OffsetDateTime.of(2026, 10, 25, 12, 0, 0, 0, ZoneOffset.ofHours(9));
         List<ExistingTrade> rows = List.of(existing(1, normal), existing(2, cancelled, since));
 
         // 계속 없으면 missing이지만 새로 표시할 대상은 아니다
