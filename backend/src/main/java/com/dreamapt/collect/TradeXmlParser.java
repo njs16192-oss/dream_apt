@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -32,6 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 public class TradeXmlParser {
 
     private static final String SUCCESS_CODE = "000";
+    private static final Set<String> AUTH_REASON_CODES = Set.of("20", "30", "31", "32");
+    private static final Set<String> TRANSIENT_RESULT_CODES = Set.of("01", "02", "04");
 
     // 해제사유발생일(cdealDay), 등기일자(rgstDate) 형식. 예: "26.10.05"
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("yy.MM.dd");
@@ -41,9 +44,11 @@ public class TradeXmlParser {
 
         String resultCode = text(doc.getDocumentElement(), "resultCode");
         if (!SUCCESS_CODE.equals(resultCode)) {
-            // 인증 실패 등은 <OpenAPI_ServiceResponse> 형식으로 와서 resultCode가 없다
-            throw new TradeApiException("API 오류 응답: resultCode=" + resultCode
+            // 인증 실패·한도 초과 등은 <OpenAPI_ServiceResponse> 형식으로 와서 resultCode 대신 returnReasonCode가 있다
+            String reasonCode = text(doc.getDocumentElement(), "returnReasonCode");
+            throw new TradeApiException(errorKind(resultCode, reasonCode), "API 오류 응답: resultCode=" + resultCode
                     + ", resultMsg=" + text(doc.getDocumentElement(), "resultMsg")
+                    + ", returnReasonCode=" + reasonCode
                     + ", returnAuthMsg=" + text(doc.getDocumentElement(), "returnAuthMsg"));
         }
 
@@ -55,6 +60,23 @@ public class TradeXmlParser {
 
         String totalCount = text(doc.getDocumentElement(), "totalCount");
         return new TradePage(items, totalCount == null ? items.size() : Integer.parseInt(totalCount));
+    }
+
+    /**
+     * 공공데이터포털 오류 코드 분류. 22 = 일일 트래픽 한도 초과, 20·30·31·32 = 접근 거부·키 미등록·기한 만료·IP 미등록.
+     * resultCode 01(어플리케이션 에러)·02(DB 에러)·04(HTTP 에러)는 제공기관 쪽 일시 오류로 본다.
+     */
+    private static TradeApiException.Kind errorKind(String resultCode, String reasonCode) {
+        if ("22".equals(reasonCode)) {
+            return TradeApiException.Kind.QUOTA_EXCEEDED;
+        }
+        if (reasonCode != null && AUTH_REASON_CODES.contains(reasonCode)) {
+            return TradeApiException.Kind.AUTH;
+        }
+        if (resultCode != null && TRANSIENT_RESULT_CODES.contains(resultCode)) {
+            return TradeApiException.Kind.TRANSIENT;
+        }
+        return TradeApiException.Kind.OTHER;
     }
 
     private TradeRecord toRecord(Element item) {

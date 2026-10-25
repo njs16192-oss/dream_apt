@@ -5,10 +5,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+
+import com.dreamapt.collect.TradeApiException.Kind;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,9 +31,10 @@ public class TradeApiClient {
 
     private final RestClient restClient;
     private final TradeXmlParser parser;
+    private final ApiRequestThrottle throttle;
     private final String apiKey;
 
-    public TradeApiClient(DataGoKrProperties properties, TradeXmlParser parser) {
+    public TradeApiClient(DataGoKrProperties properties, TradeXmlParser parser, ApiRequestThrottle throttle) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(5));
         requestFactory.setReadTimeout(Duration.ofSeconds(30));
@@ -36,12 +43,13 @@ public class TradeApiClient {
                 .requestFactory(requestFactory)
                 .build();
         this.parser = parser;
+        this.throttle = throttle;
         this.apiKey = properties.apiKey();
     }
 
     public FetchedTrades fetch(String sggCd, String dealYm) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new TradeApiException("API 키가 없습니다. 환경변수 DATA_GO_KR_API_KEY를 설정하세요.");
+            throw new TradeApiException(Kind.AUTH, "API 키가 없습니다. 환경변수 DATA_GO_KR_API_KEY를 설정하세요.");
         }
 
         List<TradeRecord> all = new ArrayList<>();
@@ -58,6 +66,7 @@ public class TradeApiClient {
     }
 
     private String requestPage(String sggCd, String dealYm, int pageNo) {
+        throttle.acquire();
         try {
             // 값은 반드시 URI 변수({...})로 넘긴다. 쿼리 문자열에 직접 넣으면 키의 '+'가
             // 인코딩되지 않아 서버에서 공백으로 해석되고 인증에 실패한다.
@@ -77,7 +86,27 @@ public class TradeApiClient {
                     .retrieve()
                     .body(String.class);
         } catch (RestClientException e) {
-            throw new TradeApiException("실거래가 API 호출 실패: sggCd=" + sggCd + ", dealYm=" + dealYm, e);
+            throw new TradeApiException(errorKind(e), "실거래가 API 호출 실패: sggCd=" + sggCd + ", dealYm=" + dealYm, e);
         }
+    }
+
+    /**
+     * 타임아웃·연결 실패·5xx는 일시 오류. 게이트웨이가 HTTP 상태로 알려 주는 인증 실패(401·403)와
+     * 호출 한도 초과(429)는 XML 오류 응답과 같은 종류로 본다.
+     */
+    static Kind errorKind(RestClientException e) {
+        if (e instanceof ResourceAccessException || e instanceof HttpServerErrorException) {
+            return Kind.TRANSIENT;
+        }
+        if (e instanceof HttpClientErrorException clientError) {
+            if (clientError.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                return Kind.QUOTA_EXCEEDED;
+            }
+            if (clientError.getStatusCode().isSameCodeAs(HttpStatus.UNAUTHORIZED)
+                    || clientError.getStatusCode().isSameCodeAs(HttpStatus.FORBIDDEN)) {
+                return Kind.AUTH;
+            }
+        }
+        return Kind.OTHER;
     }
 }

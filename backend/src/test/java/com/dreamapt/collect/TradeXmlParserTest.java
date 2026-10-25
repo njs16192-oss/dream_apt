@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.core.io.ClassPathResource;
 
 class TradeXmlParserTest {
@@ -82,8 +84,35 @@ class TradeXmlParserTest {
                 </cmmMsgHeader></OpenAPI_ServiceResponse>""";
 
         assertThatThrownBy(() -> parser.parse(xml))
-                .isInstanceOf(TradeApiException.class)
-                .hasMessageContaining("SERVICE_KEY_IS_NOT_REGISTERED_ERROR");
+                .hasMessageContaining("SERVICE_KEY_IS_NOT_REGISTERED_ERROR")
+                .isInstanceOfSatisfying(TradeApiException.class,
+                        e -> assertThat(e.kind()).isEqualTo(TradeApiException.Kind.AUTH));
+    }
+
+    @Test
+    void 트래픽_한도_초과는_실행을_멈추는_오류다() {
+        String xml = """
+                <OpenAPI_ServiceResponse><cmmMsgHeader>
+                <errMsg>SERVICE ERROR</errMsg>
+                <returnAuthMsg>LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR</returnAuthMsg>
+                <returnReasonCode>22</returnReasonCode>
+                </cmmMsgHeader></OpenAPI_ServiceResponse>""";
+
+        assertThatThrownBy(() -> parser.parse(xml))
+                .isInstanceOfSatisfying(TradeApiException.class, e -> {
+                    assertThat(e.kind()).isEqualTo(TradeApiException.Kind.QUOTA_EXCEEDED);
+                    assertThat(e.kind().abortsRun()).isTrue();
+                });
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "01, TRANSIENT", "04, TRANSIENT", "10, OTHER" })
+    void resultCode로_오류_종류를_나눈다(String resultCode, TradeApiException.Kind expected) {
+        String xml = "<response><header><resultCode>" + resultCode + "</resultCode>"
+                + "<resultMsg>ERROR</resultMsg></header></response>";
+
+        assertThatThrownBy(() -> parser.parse(xml))
+                .isInstanceOfSatisfying(TradeApiException.class, e -> assertThat(e.kind()).isEqualTo(expected));
     }
 
     @Test
