@@ -6,29 +6,56 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.junit.jupiter.api.Nested;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.dreamapt.support.TestcontainersConfiguration;
 
-/** API 문서 그룹: public은 항상, admin은 설정이 켜졌을 때만. */
+/** API 문서 그룹: public은 항상, admin은 설정이 켜졌을 때만. 아무 설정이 없으면 안전한 쪽(admin 없음)이다. */
 class ApiDocsIntegrationTest {
 
+    /**
+     * jar 실행(k8s)과 같은 조건: 활성 프로필 없음, spring.profiles.default 없음(bootRun에서만 local),
+     * API_DOCS_ADMIN_ENABLED 없음. 테스트 JVM에는 bootRun의 systemProperty가 들어오지 않는다.
+     */
     @Nested
     @SpringBootTest
     @AutoConfigureMockMvc
     @Import(TestcontainersConfiguration.class)
-    class 기본_설정 {
+    class 프로필과_설정이_없으면 {
 
         @Autowired
         MockMvc mockMvc;
+
+        @Autowired
+        Environment environment;
+
+        @Autowired
+        List<GroupedOpenApi> groups;
+
+        @Test
+        void jar_실행과_같은_조건이다() {
+            assertThat(System.getProperty("spring.profiles.default")).isNull();
+            assertThat(System.getenv("API_DOCS_ADMIN_ENABLED")).isNull();
+            assertThat(environment.getActiveProfiles()).isEmpty();
+            assertThat(environment.getDefaultProfiles()).containsExactly("default");
+        }
+
+        @Test
+        void 관리_API_문서는_꺼져_있고_public_그룹만_있다() {
+            assertThat(environment.getProperty("dreamapt.docs.admin-enabled", Boolean.class)).isFalse();
+            assertThat(groups).extracting(GroupedOpenApi::getGroup).containsExactly("public");
+        }
 
         @Test
         void public_그룹에는_조회_API만_있고_관리_API는_없다() throws Exception {
