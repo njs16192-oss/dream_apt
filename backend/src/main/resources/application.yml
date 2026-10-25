@@ -12,6 +12,13 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  batch:
+    job:
+      # 웹 앱에서는 Job을 자동 실행하지 않는다. batch 프로필에서만 켠다 (ADR 006)
+      enabled: false
+    jdbc:
+      # 메타데이터 테이블은 Flyway(V4)로 만든다
+      initialize-schema: never
 
 management:
   endpoints:
@@ -26,7 +33,22 @@ dreamapt:
     base-url: ${DATA_GO_KR_BASE_URL:https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev}
     # 공공데이터포털의 "Decoding" 키 (Encoding 키를 넣으면 이중 인코딩되어 인증 실패)
     api-key: ${DATA_GO_KR_API_KEY:}
+    # API 호출 사이 최소 간격 (ADR 006)
+    request-interval: ${DATA_GO_KR_REQUEST_INTERVAL:300ms}
   # 새 missing이 최소 건수 이상이고 기존 유효 행 대비 비율이 한도를 넘으면 missing 표시를 보류 (ADR 004)
   collect:
     missing-ratio-limit: ${COLLECT_MISSING_RATIO_LIMIT:0.2}
     missing-min-count: ${COLLECT_MISSING_MIN_COUNT:5}
+    # 수집 배치 (ADR 005, 006)
+    batch:
+      # 기준일("이번 달")을 정하는 시간대. k8s 노드는 UTC라 명시한다
+      zone: ${COLLECT_ZONE:Asia/Seoul}
+      backfill-start: ${COLLECT_BACKFILL_START:2020-01}
+      # backfill 1회 실행당 최대 API 호출 수 (일일 한도 1만 회)
+      backfill-max-calls: ${COLLECT_BACKFILL_MAX_CALLS:2000}
+      # 시작 후 이 시간이 지난 STARTED 실행은 강제 종료로 남은 기록으로 본다. CronJob activeDeadlineSeconds는 이보다 짧게
+      stale-running-after: ${COLLECT_STALE_RUNNING_AFTER:2h}
+      retry:
+        max-retries: ${COLLECT_RETRY_MAX_RETRIES:3}
+        delay: ${COLLECT_RETRY_DELAY:2s}
+        multiplier: ${COLLECT_RETRY_MULTIPLIER:2}

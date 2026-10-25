@@ -1,0 +1,7 @@
+# 수집 배치 실행용 프로필 (ADR 006). 웹 서버 없이 기동해 collectTradeJob을 한 번 실행하고 종료 코드와 함께 끝난다
+#   ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily [--baseDate=2026-10-25]'
+spring:
+  main:
+    web-application-type: none
+  jpa:
+    show-sql: false

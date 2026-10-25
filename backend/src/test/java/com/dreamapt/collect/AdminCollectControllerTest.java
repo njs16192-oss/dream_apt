@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.YearMonth;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.dreamapt.collect.batch.CollectTarget;
+import com.dreamapt.collect.batch.CollectTargetRunner;
+
 @WebMvcTest(AdminCollectController.class)
 class AdminCollectControllerTest {
 
@@ -20,11 +24,13 @@ class AdminCollectControllerTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    TradeCollectService collectService;
+    CollectTargetRunner runner;
+
+    private static final CollectTarget TARGET = new CollectTarget("11500", YearMonth.of(2026, 9));
 
     @Test
     void 수집_결과를_반환한다() throws Exception {
-        given(collectService.collect("11500", "202609"))
+        given(runner.collect(TARGET, null))
                 .willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 12, 7,
                         List.of(ReconcileResult.MISSING_RATIO_EXCEEDED)));
 
@@ -48,7 +54,7 @@ class AdminCollectControllerTest {
 
     @Test
     void 외부_API_오류는_502() throws Exception {
-        given(collectService.collect("11500", "202609")).willThrow(new TradeApiException("API 오류 응답"));
+        given(runner.collect(TARGET, null)).willThrow(new TradeApiException("API 오류 응답"));
 
         mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"))
                 .andExpect(status().isBadGateway());

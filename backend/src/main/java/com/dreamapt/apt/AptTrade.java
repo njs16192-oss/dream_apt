@@ -2,7 +2,7 @@ package com.dreamapt.apt;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -77,13 +77,13 @@ public class AptTrade {
     private LocalDate registeredDate;
 
     // 원본(API)에서 사라진 것이 처음 확인된 시각. 다시 나타나면 null
-    private LocalDateTime missingSince;
+    private OffsetDateTime missingSince;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     @UpdateTimestamp
     @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }
