@@ -86,3 +86,27 @@ const seoulMonthFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seou
 export function seoulMonth(now: Date = new Date()): YearMonth {
   return seoulMonthFormat.format(now)
 }
+
+/**
+ * 가격 y축 눈금. 0에서 시작하지 않고 데이터 범위를 덮는 깔끔한 간격(1·2·2.5·5 × 10ⁿ 만원)으로 나눈다.
+ * Recharts의 domain 'auto'는 "30.55억, 29.9억"처럼 끝자리가 지저분한 눈금을 낼 수 있다.
+ * 값이 하나뿐이면 위아래 5%를 띄운다.
+ */
+export function priceTicks(values: readonly number[], count = 5): number[] {
+  let min = Math.min(...values)
+  let max = Math.max(...values)
+  if (min === max) {
+    const pad = Math.max(Math.round(max * 0.05), 1)
+    min -= pad
+    max += pad
+  }
+  const rough = (max - min) / (count - 1)
+  const magnitude = 10 ** Math.floor(Math.log10(rough))
+  const step = Math.max([1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!, 1)
+  const ticks: number[] = []
+  for (let tick = Math.floor(min / step) * step; tick < max + step; tick += step) {
+    ticks.push(tick)
+    if (tick >= max) break
+  }
+  return ticks
+}

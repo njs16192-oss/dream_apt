@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fillMonths } from './month'
-import { formatEokAxis, isolatedMonths, monthTicks, seoulMonth, splitProvisional } from './series'
+import { formatEokAxis, isolatedMonths, monthTicks, priceTicks, seoulMonth, splitProvisional } from './series'
 
 type Item = { month: string; v: number }
 const item = (month: string, v: number): Item => ({ month, v })
@@ -109,5 +109,26 @@ describe('seoulMonth', () => {
   it('UTC 15:00(서울 자정)에 달이 바뀐다', () => {
     expect(seoulMonth(new Date('2026-10-31T14:59:59Z'))).toBe('2026-10')
     expect(seoulMonth(new Date('2026-10-31T15:00:00Z'))).toBe('2026-11')
+  })
+})
+
+describe('priceTicks', () => {
+  it('데이터 범위를 덮는 깔끔한 간격으로 나누고 0에서 시작하지 않는다', () => {
+    expect(priceTicks([279500, 305500])).toEqual([270000, 280000, 290000, 300000, 310000])
+    expect(priceTicks([190000, 310000])).toEqual([150000, 200000, 250000, 300000, 350000])
+  })
+
+  it('경계에 딱 맞으면 넘치지 않는다', () => {
+    expect(priceTicks([100000, 140000])).toEqual([100000, 110000, 120000, 130000, 140000])
+  })
+
+  it('값이 하나뿐이면 위아래로 띄운다', () => {
+    const ticks = priceTicks([245000])
+    expect(ticks[0]).toBeLessThan(245000)
+    expect(ticks.at(-1)).toBeGreaterThan(245000)
+  })
+
+  it('작은 금액도 1만원보다 잘게 나누지 않는다', () => {
+    expect(priceTicks([9000, 9002]).every(Number.isInteger)).toBe(true)
   })
 })
