@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
 import type { Schemas } from '../api/client'
 import { formatArea, formatDate, formatManwon } from '../lib/format'
@@ -12,10 +13,23 @@ type Props = {
  * 면적을 바꾸면 페이지는 처음부터 (page를 지운다). push라서 뒤로 가기로 이전 면적에 돌아간다.
  */
 export function AreaTabs({ groups, selected }: Props) {
+  const navRef = useRef<HTMLElement>(null)
+
+  // 탭이 많으면 선택된 탭(보통 거래 수 최다 그룹)이 가로 스크롤 밖에 있어 무엇을 보는지 모른다. 가운데로 가져온다.
+  // scrollIntoView는 페이지까지 세로로 움직일 수 있어서 탭 줄의 scrollLeft만 바꾼다
+  useEffect(() => {
+    const nav = navRef.current
+    const tab = nav?.querySelector('[aria-current="page"]')
+    if (!nav || !tab) return
+    const navRect = nav.getBoundingClientRect()
+    const tabRect = tab.getBoundingClientRect()
+    nav.scrollLeft += tabRect.left - navRect.left - (navRect.width - tabRect.width) / 2
+  }, [selected])
+
   return (
     <div className="space-y-2">
       <p className="text-xs text-slate-500">전용면적을 ㎡ 단위로 반올림해 묶었어요. 거래 목록에는 실제 면적이 나와요.</p>
-      <nav aria-label="면적" className="-mx-4 overflow-x-auto px-4 pb-1">
+      <nav ref={navRef} aria-label="면적" className="-mx-4 overflow-x-auto px-4 pb-1">
         <ul className="flex gap-2">
           {groups.map((group) => {
             const isSelected = group.areaGroup === selected

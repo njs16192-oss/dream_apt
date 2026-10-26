@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import type { Schemas } from '../api/client'
-import { complexDetailQuery } from '../api/queries'
+import { complexDetailQuery, complexTradesQuery } from '../api/queries'
 import { AreaTabs } from '../components/AreaTabs'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
 import { Loading } from '../components/Loading'
-import { pickAreaGroup } from '../lib/complexParams'
+import { Pagination } from '../components/Pagination'
+import { TradeList } from '../components/TradeList'
+import { parsePage, pickAreaGroup } from '../lib/complexParams'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 /**
@@ -50,9 +52,60 @@ export function ComplexPage() {
       {detail.data.areaGroups.length === 0 ? (
         <EmptyState title="아직 거래 기록이 없어요" />
       ) : (
-        resolvedArea !== null && <AreaTabs groups={detail.data.areaGroups} selected={resolvedArea} />
+        resolvedArea !== null && (
+          <>
+            <AreaTabs groups={detail.data.areaGroups} selected={resolvedArea} />
+            <TradeSection aptSeq={aptSeq} area={resolvedArea} page={parsePage(params.get('page'))} />
+          </>
+        )
       )}
     </div>
+  )
+}
+
+/** 거래 목록. 오류는 이 영역에만 보여주고 헤더·탭은 그대로 둔다. page는 1부터 */
+function TradeSection({ aptSeq, area, page }: { aptSeq: string; area: number; page: number }) {
+  const trades = useQuery(complexTradesQuery(aptSeq, area, page - 1))
+  const searchFor = (target: number) => (target === 1 ? `?area=${area}` : `?area=${area}&page=${target}`)
+
+  let body
+  if (trades.isError) {
+    body = <ErrorState error={trades.error} onRetry={() => trades.refetch()} />
+  } else if (trades.data === undefined) {
+    body = <Loading label="거래 불러오는 중" />
+  } else if (trades.data.content.length === 0) {
+    body =
+      trades.data.totalElements === 0 ? (
+        <EmptyState title="이 면적의 거래가 없어요" />
+      ) : (
+        <EmptyState title="이 페이지에 거래가 없어요">
+          <Link to={{ search: searchFor(1) }} className="font-medium text-blue-700 underline-offset-2 hover:underline">
+            첫 페이지로
+          </Link>
+        </EmptyState>
+      )
+  } else {
+    body = (
+      <div className={trades.isPlaceholderData ? 'opacity-50 transition-opacity' : undefined}>
+        <TradeList trades={trades.data.content} />
+        <Pagination page={page} totalPages={trades.data.totalPages} searchFor={searchFor} />
+      </div>
+    )
+  }
+
+  return (
+    <section aria-labelledby="trades-heading" className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="trades-heading" className="font-semibold text-slate-900">
+          거래 내역
+        </h2>
+        {trades.data && (
+          <span className="text-sm text-slate-500">{trades.data.totalElements.toLocaleString('ko-KR')}건</span>
+        )}
+      </div>
+      <p className="text-xs text-slate-500">최신 계약일 순. 일괄: 같은 단지·같은 날 10건 이상인 거래</p>
+      {body}
+    </section>
   )
 }
 
