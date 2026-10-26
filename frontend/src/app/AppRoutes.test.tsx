@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { mockApi } from '../test/mockApi'
 import { renderWithProviders } from '../test/render'
 import { AppRoutes } from './AppRoutes'
 
@@ -12,9 +13,12 @@ describe('AppRoutes', () => {
     expect(screen.getByText(/출처: 국토교통부/)).toBeInTheDocument()
   })
 
-  it('단지 상세와 구 거래량 경로의 파라미터를 읽는다', () => {
+  it('단지 상세는 경로의 aptSeq로 단지를 불러온다', async () => {
+    const server = mockApi({ '/api/complexes/11710-1234': { status: 404, body: { status: 404 } } })
     renderWithProviders(<AppRoutes />, { route: '/complexes/11710-1234?area=85' })
-    expect(screen.getByRole('heading', { name: '단지 11710-1234' })).toBeInTheDocument()
+
+    expect(await screen.findByText('단지를 찾을 수 없어요')).toBeInTheDocument()
+    expect(server.to('/api/complexes/11710-1234')).toHaveLength(1)
   })
 
   it('구 거래량 경로', () => {

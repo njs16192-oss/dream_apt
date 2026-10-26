@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatArea, formatManwon, toPyeong } from './format'
+import { formatArea, formatDate, formatManwon, toPyeong } from './format'
 
 describe('formatManwon', () => {
   it.each([
@@ -45,5 +45,11 @@ describe('formatArea', () => {
     expect(formatArea(84.97)).toBe('전용 84.97㎡ (25.7평)')
     expect(formatArea(85)).toBe('전용 85㎡ (25.7평)')
     expect(formatArea(33.0578)).toBe('전용 33.0578㎡ (10.0평)')
+  })
+})
+
+describe('formatDate', () => {
+  it('하이픈을 점으로 바꾼다', () => {
+    expect(formatDate('2026-09-18')).toBe('2026.09.18')
   })
 })
