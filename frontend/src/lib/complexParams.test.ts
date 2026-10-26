@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickAreaGroup, parsePage } from './complexParams'
+import { pickAreaGroup, parsePage, searchWith } from './complexParams'
 
 const group = (areaGroup: number, tradeCount: number, bulkCount = 0) => ({ areaGroup, tradeCount, bulkCount })
 
@@ -32,5 +32,17 @@ describe('parsePage', () => {
 
   it.each([null, '', '0', '-1', '1.5', 'abc', '2a'])('%s 이면 1', (raw) => {
     expect(parsePage(raw)).toBe(1)
+  })
+})
+
+describe('searchWith', () => {
+  it('바꿀 값만 덮어쓰고 나머지는 유지, null은 지운다', () => {
+    const params = new URLSearchParams('area=85&page=3&period=1y')
+    expect(searchWith(params, { area: '59', page: null })).toBe('?area=59&period=1y')
+    expect(searchWith(params, { page: '4' })).toBe('?area=85&page=4&period=1y')
+  })
+
+  it('다 지우면 빈 문자열', () => {
+    expect(searchWith(new URLSearchParams('page=2'), { page: null })).toBe('')
   })
 })

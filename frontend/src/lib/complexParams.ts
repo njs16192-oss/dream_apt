@@ -30,3 +30,17 @@ export function parsePage(raw: string | null): number {
   const page = Number(raw)
   return page >= 1 ? page : 1
 }
+
+/**
+ * 현재 쿼리에 바꿀 값만 덮어쓴 search 문자열. null이면 지운다.
+ * 탭·페이지 링크가 ?period= 같은 다른 보기 설정을 잃지 않게 한다.
+ */
+export function searchWith(params: URLSearchParams, changes: Record<string, string | null>): string {
+  const updated = new URLSearchParams(params)
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === null) updated.delete(key)
+    else updated.set(key, value)
+  }
+  const search = updated.toString()
+  return search ? `?${search}` : ''
+}

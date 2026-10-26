@@ -8,8 +8,9 @@ import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
 import { Loading } from '../components/Loading'
 import { Pagination } from '../components/Pagination'
+import { PriceTrend } from '../components/PriceTrend'
 import { TradeList } from '../components/TradeList'
-import { parsePage, pickAreaGroup } from '../lib/complexParams'
+import { parsePage, pickAreaGroup, searchWith } from '../lib/complexParams'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 /**
@@ -54,8 +55,22 @@ export function ComplexPage() {
       ) : (
         resolvedArea !== null && (
           <>
-            <AreaTabs groups={detail.data.areaGroups} selected={resolvedArea} />
-            <TradeSection aptSeq={aptSeq} area={resolvedArea} page={parsePage(params.get('page'))} />
+            <AreaTabs
+              groups={detail.data.areaGroups}
+              selected={resolvedArea}
+              searchFor={(group) => searchWith(params, { area: String(group), page: null })}
+            />
+            <PriceTrend
+              aptSeq={aptSeq}
+              group={detail.data.areaGroups.find((group) => group.areaGroup === resolvedArea)!}
+              bulkDominant={detail.data.bulkDominant}
+            />
+            <TradeSection
+              aptSeq={aptSeq}
+              area={resolvedArea}
+              page={parsePage(params.get('page'))}
+              searchFor={(page) => searchWith(params, { page: page === 1 ? null : String(page) })}
+            />
           </>
         )
       )}
@@ -63,10 +78,17 @@ export function ComplexPage() {
   )
 }
 
-/** 거래 목록. 오류는 이 영역에만 보여주고 헤더·탭은 그대로 둔다. page는 1부터 */
-function TradeSection({ aptSeq, area, page }: { aptSeq: string; area: number; page: number }) {
+type TradeSectionProps = {
+  aptSeq: string
+  area: number
+  /** 1부터 */
+  page: number
+  searchFor: (page: number) => string
+}
+
+/** 거래 목록. 오류는 이 영역에만 보여주고 헤더·탭은 그대로 둔다 */
+function TradeSection({ aptSeq, area, page, searchFor }: TradeSectionProps) {
   const trades = useQuery(complexTradesQuery(aptSeq, area, page - 1))
-  const searchFor = (target: number) => (target === 1 ? `?area=${area}` : `?area=${area}&page=${target}`)
 
   let body
   if (trades.isError) {

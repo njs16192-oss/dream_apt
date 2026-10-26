@@ -65,8 +65,31 @@ function tradePage(content: Schemas['TradeItem'][], { page = 0, totalElements = 
 
 type TradesRoute = MockResponse | ((url: URL) => MockResponse | Promise<MockResponse>)
 
-function setup({ detail = { body: complex() }, trades = tradePage([]) }: { detail?: MockResponse; trades?: TradesRoute } = {}) {
-  return mockApi({ [DETAIL]: detail, [TRADES]: trades })
+const monthlyPath = (area: number) => `/api/complexes/${APT_SEQ}/areas/${area}/monthly`
+
+function priceSeries(months: Schemas['MonthlyPrice'][]): MockResponse {
+  return { body: { baseDate: '2026-10-25', provisionalFrom: '2026-09', from: null, to: '2026-10', months } }
+}
+
+const price = (month: string, medianAmount: number, count = 3): Schemas['MonthlyPrice'] => ({
+  month,
+  medianAmount,
+  count,
+  provisional: month >= '2026-09',
+})
+
+type Setup = {
+  detail?: MockResponse
+  trades?: TradesRoute
+  /** 면적별 월별 가격. 정하지 않은 면적은 빈 시리즈 */
+  monthly?: Record<number, MockResponse | (() => Promise<MockResponse>)>
+}
+
+function setup({ detail = { body: complex() }, trades = tradePage([]), monthly = {} }: Setup = {}) {
+  const monthlyRoutes = Object.fromEntries(
+    [59, 85, 115].map((area) => [monthlyPath(area), monthly[area] ?? priceSeries([])]),
+  )
+  return mockApi({ [DETAIL]: detail, [TRADES]: trades, ...monthlyRoutes })
 }
 
 /** 직접 끝내는 응답. 로딩 중 화면을 보려고 쓴다 */
@@ -355,6 +378,121 @@ describe('ComplexPage', () => {
       expect(await screen.findByText('데이터를 불러오지 못했어요')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: '헬리오시티' })).toBeInTheDocument()
       expect(screen.getByRole('navigation', { name: '면적' })).toBeInTheDocument()
+    })
+  })
+
+  describe('가격 추이', () => {
+    const PRICES = [price('2022-03', 150000), price('2024-06', 200000), price('2026-08', 245000, 12), price('2026-10', 250000, 2)]
+    /** 표 보기를 열고 계약월 열을 읽는다 */
+    const tableMonths = async () => {
+      const details = (await screen.findByText('표로 보기')).closest('details')!
+      details.open = true
+      const table = within(details).getByRole('table', { name: '월별 가격' })
+      return within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getAllByRole('cell')[0].textContent)
+    }
+    const periodButton = (name: string) => within(screen.getByRole('group', { name: '기간' })).getByRole('button', { name })
+
+    it('기본 3년: 표 보기에 기간 안의 달을 최신순으로, 집계 중 달을 표시한다', async () => {
+      const server = setup({ monthly: { 85: priceSeries(PRICES) } })
+      renderPage(`/complexes/${APT_SEQ}?area=85`)
+
+      expect(await tableMonths()).toEqual(['2026.10집계 중', '2026.08', '2024.06'])
+      expect(periodButton('3년')).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByText(/집계 중 \(최근 2개월/)).toBeInTheDocument()
+      expect(server.to(monthlyPath(85))).toHaveLength(1)
+      // 기간 없이 전체를 받는다
+      expect(server.to(monthlyPath(85))[0].search).toBe('')
+    })
+
+    it('기간을 바꾸면 다시 요청하지 않고 화면에서 자르며, 주소에 period를 replace로 남긴다', async () => {
+      const server = setup({ monthly: { 85: priceSeries(PRICES) } })
+      renderPage(undefined, ['/', `/complexes/${APT_SEQ}?area=85`])
+      await tableMonths()
+
+      await userEvent.click(periodButton('1년'))
+      expect(await tableMonths()).toEqual(['2026.10집계 중', '2026.08'])
+      expect(location()).toBe(`/complexes/${APT_SEQ}?area=85&period=1y`)
+
+      await userEvent.click(periodButton('전체'))
+      expect(await tableMonths()).toEqual(['2026.10집계 중', '2026.08', '2024.06', '2022.03'])
+
+      await userEvent.click(periodButton('5년'))
+      await userEvent.click(periodButton('3년'))
+      expect(location()).toBe(`/complexes/${APT_SEQ}?area=85`)
+      expect(server.to(monthlyPath(85))).toHaveLength(1)
+
+      fireEvent.click(screen.getByTestId('history-back'))
+      expect(location()).toBe('/')
+    })
+
+    it('면적 탭과 페이지 링크는 기간을 유지한다', async () => {
+      setup({
+        detail: { body: complex({ areaGroups: THREE_GROUPS }) },
+        trades: tradePage([trade()], { totalElements: 45 }),
+      })
+      renderPage(`/complexes/${APT_SEQ}?area=85&period=1y`)
+
+      const next = await within(await screen.findByRole('navigation', { name: '페이지' })).findByRole('link', { name: '다음' })
+      expect(next).toHaveAttribute('href', `/complexes/${APT_SEQ}?area=85&period=1y&page=2`)
+
+      await userEvent.click(tab(/전용 59㎡/))
+      expect(location()).toBe(`/complexes/${APT_SEQ}?area=59&period=1y`)
+      expect(periodButton('1년')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('선택 기간에 거래가 없으면 기간을 늘리라고 안내한다', async () => {
+      setup({ monthly: { 85: priceSeries([price('2022-03', 150000)]) } })
+      renderPage(`/complexes/${APT_SEQ}?area=85`)
+
+      expect(await screen.findByText('이 기간에는 거래가 없어요')).toBeInTheDocument()
+      await userEvent.click(periodButton('전체'))
+      expect(await tableMonths()).toEqual(['2022.03'])
+    })
+
+    it('일괄 거래 위주 단지는 가격 추이 대신 안내하고 요청하지 않는다', async () => {
+      const server = setup({ detail: { body: complex({ bulkDominant: true, bulkRatio: 0.9 }) } })
+      renderPage(`/complexes/${APT_SEQ}?area=85`)
+
+      expect(await screen.findByText('일괄 거래 위주라 가격 추이를 보여주지 않아요')).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: '기간' })).not.toBeInTheDocument()
+      expect(server.to(monthlyPath(85))).toHaveLength(0)
+    })
+
+    it('일반 거래가 없는 면적은 안내하고 요청하지 않는다', async () => {
+      const server = setup({ detail: { body: complex({ areaGroups: THREE_GROUPS }) } })
+      renderPage(`/complexes/${APT_SEQ}?area=115`)
+
+      expect(await screen.findByText('이 면적은 일반 거래가 없어요')).toBeInTheDocument()
+      expect(server.to(monthlyPath(115))).toHaveLength(0)
+    })
+
+    it('면적을 바꾸면 응답이 올 때까지 이전 면적의 가격을 보여주지 않는다', async () => {
+      const pending59 = deferred()
+      setup({
+        detail: { body: complex({ areaGroups: THREE_GROUPS }) },
+        monthly: { 85: priceSeries(PRICES), 59: () => pending59.promise },
+      })
+      renderPage(`/complexes/${APT_SEQ}?area=85`)
+      await tableMonths()
+
+      await userEvent.click(tab(/전용 59㎡/))
+
+      expect(await screen.findByText('가격 불러오는 중')).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: '월별 가격' })).not.toBeInTheDocument()
+
+      pending59.resolve(priceSeries([price('2026-05', 180000)]))
+      expect(await tableMonths()).toEqual(['2026.05'])
+    })
+
+    it('가격만 실패하면 그 자리에 오류를 보여주고 거래 목록은 남긴다', async () => {
+      setup({ monthly: { 85: { status: 500, body: { status: 500 } } }, trades: tradePage([trade()]) })
+      renderPage(`/complexes/${APT_SEQ}?area=85`)
+
+      expect(await screen.findByText('데이터를 불러오지 못했어요')).toBeInTheDocument()
+      expect(await screen.findByRole('list', { name: '거래 목록' })).toBeInTheDocument()
     })
   })
 })

@@ -6,13 +6,15 @@ import { formatArea, formatDate, formatManwon } from '../lib/format'
 type Props = {
   groups: readonly Schemas['AreaGroupSummary'][]
   selected: number
+  /** 해당 면적으로 가는 주소의 search (page는 지우고 다른 보기 설정은 유지) */
+  searchFor: (areaGroup: number) => string
 }
 
 /**
  * 면적 그룹 선택. 고르면 URL(?area=)이 바뀌는 이동이라 ARIA tabs가 아니라 링크로 둔다.
  * 면적을 바꾸면 페이지는 처음부터 (page를 지운다). push라서 뒤로 가기로 이전 면적에 돌아간다.
  */
-export function AreaTabs({ groups, selected }: Props) {
+export function AreaTabs({ groups, selected, searchFor }: Props) {
   const navRef = useRef<HTMLElement>(null)
 
   // 탭이 많으면 선택된 탭(보통 거래 수 최다 그룹)이 가로 스크롤 밖에 있어 무엇을 보는지 모른다. 가운데로 가져온다.
@@ -36,7 +38,7 @@ export function AreaTabs({ groups, selected }: Props) {
             return (
               <li key={group.areaGroup} className="shrink-0">
                 <Link
-                  to={{ search: `?area=${group.areaGroup}` }}
+                  to={{ search: searchFor(group.areaGroup) }}
                   aria-current={isSelected ? 'page' : undefined}
                   className={`block rounded-xl border px-3 py-2.5 text-left transition-colors ${
                     isSelected
