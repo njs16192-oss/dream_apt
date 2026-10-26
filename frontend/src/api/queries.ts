@@ -23,3 +23,31 @@ export function complexSearchQuery(term: string, sggCd: string | null) {
     placeholderData: keepPreviousData,
   })
 }
+
+/** 거래 목록 한 페이지 건수 */
+export const TRADE_PAGE_SIZE = 20
+
+export function complexDetailQuery(aptSeq: string) {
+  return queryOptions({
+    queryKey: ['complexes', aptSeq],
+    queryFn: () => api.GET('/api/complexes/{aptSeq}', { params: { path: { aptSeq } } }).then(unwrap),
+  })
+}
+
+/** page는 API 기준(0부터). */
+export function complexTradesQuery(aptSeq: string, areaGroup: number, page: number) {
+  const queryKey = ['complexes', aptSeq, 'trades', areaGroup, page] as const
+  return queryOptions({
+    queryKey,
+    queryFn: () =>
+      api
+        .GET('/api/complexes/{aptSeq}/trades', {
+          params: { path: { aptSeq }, query: { areaGroup, page, size: TRADE_PAGE_SIZE } },
+        })
+        .then(unwrap),
+    // 같은 단지·같은 면적에서 페이지만 넘길 때 이전 목록을 남긴다 (흐리게 표시).
+    // 면적이 바뀌면 남기지 않는다: 다른 면적의 거래가 잠깐 보이면 헷갈린다
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === aptSeq && previousQuery.queryKey[3] === areaGroup ? previous : undefined,
+  })
+}

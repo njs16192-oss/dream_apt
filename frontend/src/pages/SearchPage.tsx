@@ -8,12 +8,14 @@ import { ErrorState } from '../components/ErrorState'
 import { Loading } from '../components/Loading'
 import { searchTerm } from '../lib/searchTerm'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 /**
  * 검색 조건은 URL(?q=&sggCd=)이 기준이다. 입력창만 로컬 state로 두고 300ms 뒤 URL에 replace로 쓴다.
  * 뒤로 가기처럼 URL이 바깥에서 바뀌면 입력창을 URL 값으로 맞춘다.
  */
 export function SearchPage() {
+  useDocumentTitle('단지 검색')
   const [params, setParams] = useSearchParams()
   const urlQ = params.get('q') ?? ''
   const sggCd = params.get('sggCd') || null

@@ -1,8 +1,10 @@
 import { Link, Outlet } from 'react-router'
+import { ScrollToTop } from './ScrollToTop'
 
 export function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
+      <ScrollToTop />
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-4xl items-center px-4">
           <Link to="/" className="text-lg font-bold tracking-tight text-slate-900">

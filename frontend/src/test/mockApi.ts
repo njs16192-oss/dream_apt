@@ -1,10 +1,11 @@
 import { vi } from 'vitest'
 
 export type MockResponse = { status?: number; body: unknown }
-type Route = MockResponse | ((url: URL) => MockResponse)
+type Route = MockResponse | ((url: URL) => MockResponse | Promise<MockResponse>)
 
 /**
  * fetch를 경로(pathname)별 응답으로 바꿔 끼운다. 정해지지 않은 경로는 404.
+ * 함수가 Promise를 돌려주면 그동안 응답을 미룬다 (로딩 중 화면 확인용).
  * 받은 요청 URL을 기록하므로 경로별 요청 횟수·파라미터를 확인할 수 있다.
  * 되돌리기는 setup.ts의 vi.unstubAllGlobals()가 한다.
  */
@@ -18,7 +19,7 @@ export function mockApi(routes: Record<string, Route>) {
       const route = routes[url.pathname]
       const { status = 200, body } = route
         ? typeof route === 'function'
-          ? route(url)
+          ? await route(url)
           : route
         : { status: 404, body: { status: 404, detail: `mock 없음: ${url.pathname}` } }
       return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })

@@ -24,3 +24,8 @@ export function toPyeong(squareMeters: number): number {
 export function formatArea(squareMeters: number): string {
   return `전용 ${squareMeters}㎡ (${toPyeong(squareMeters).toFixed(1)}평)`
 }
+
+/** "2026-09-18" → "2026.09.18" */
+export function formatDate(date: string): string {
+  return date.replaceAll('-', '.')
+}
