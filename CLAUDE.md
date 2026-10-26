@@ -25,6 +25,8 @@ docs/troubleshooting.md
   - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
   - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
 - Frontend: `cd frontend && npm run dev` (5173, `/api`는 8080으로 프록시)
+  - 테스트: `npm test` (Vitest)
+  - API 타입 재생성: 백엔드를 띄운 상태에서 `npm run gen:api` → `src/api/schema.d.ts` (커밋 대상, docs/adr/008-frontend-structure.md). 백엔드 응답·경로를 바꾸면 같은 PR에서 재생성
 - 개발 환경은 Windows + VS Code
 
 ## 데이터 설계 (반드시 docs/adr/002-trade-data-schema.md 참고)
