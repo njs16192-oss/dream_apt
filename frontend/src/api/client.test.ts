@@ -1,42 +1,31 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { shouldRetry } from '../app/queryClient'
+import { mockApi } from '../test/mockApi'
 import { api, ApiError, isNotFound, unwrap } from './client'
 
-function stubFetch(status: number, body: unknown) {
-  const fetchMock = vi.fn(async (_request: Request) =>
-    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
-  )
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
-
 describe('api + unwrap', () => {
-  it('경로 파라미터를 채워 요청하고 성공 응답의 본문을 돌려준다', async () => {
-    const fetchMock = stubFetch(200, [{ sggCd: '11710', sidoName: '서울특별시', sggName: '송파구' }])
+  it('성공 응답의 본문을 돌려준다', async () => {
+    const regions = [{ sggCd: '11710', sidoName: '서울특별시', sggName: '송파구' }]
+    const server = mockApi({ '/api/regions': { body: regions } })
 
-    const regions = await api.GET('/api/regions').then(unwrap)
-
-    expect(regions).toEqual([{ sggCd: '11710', sidoName: '서울특별시', sggName: '송파구' }])
-    expect(new URL(fetchMock.mock.calls[0][0].url).pathname).toBe('/api/regions')
+    expect(await api.GET('/api/regions').then(unwrap)).toEqual(regions)
+    expect(server.to('/api/regions')).toHaveLength(1)
   })
 
-  it('쿼리 파라미터를 붙인다', async () => {
-    const fetchMock = stubFetch(200, [])
+  it('경로·쿼리 파라미터를 채워 요청한다', async () => {
+    const server = mockApi({ '/api/complexes': { body: [] }, '/api/complexes/11710-1': { body: {} } })
 
     await api.GET('/api/complexes', { params: { query: { q: '헬리오', sggCd: '11710' } } }).then(unwrap)
+    await api.GET('/api/complexes/{aptSeq}', { params: { path: { aptSeq: '11710-1' } } }).then(unwrap)
 
-    const url = new URL(fetchMock.mock.calls[0][0].url)
-    expect(url.pathname).toBe('/api/complexes')
-    expect(url.searchParams.get('q')).toBe('헬리오')
-    expect(url.searchParams.get('sggCd')).toBe('11710')
+    const [search] = server.to('/api/complexes')
+    expect(search.searchParams.get('q')).toBe('헬리오')
+    expect(search.searchParams.get('sggCd')).toBe('11710')
+    expect(server.to('/api/complexes/11710-1')).toHaveLength(1)
   })
 
   it('404는 ProblemDetail을 담은 ApiError가 된다', async () => {
-    stubFetch(404, { title: 'Not Found', status: 404, detail: '단지를 찾을 수 없습니다: X' })
+    mockApi({ '/api/complexes/X': { status: 404, body: { title: 'Not Found', status: 404, detail: '단지를 찾을 수 없습니다: X' } } })
 
     const error = await api
       .GET('/api/complexes/{aptSeq}', { params: { path: { aptSeq: 'X' } } })
@@ -49,7 +38,7 @@ describe('api + unwrap', () => {
   })
 
   it('500은 404가 아닌 ApiError가 된다', async () => {
-    stubFetch(500, { title: 'Internal Server Error', status: 500 })
+    mockApi({ '/api/regions': { status: 500, body: { title: 'Internal Server Error', status: 500 } } })
 
     const error = await api.GET('/api/regions').then(unwrap).catch((e: unknown) => e)
 
