@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Pretendard', system-ui, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  /* Pretendard Variable은 main.tsx에서 npm 패키지(dynamic subset)로 불러온다. 나머지는 로드 전·실패 시 fallback */
+  --font-sans: 'Pretendard Variable', system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
 }
 
 html {
