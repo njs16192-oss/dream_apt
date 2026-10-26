@@ -3,7 +3,7 @@ import type { Schemas } from '../api/client'
 import { CHART } from '../lib/chartTheme'
 import { formatManwon } from '../lib/format'
 import type { YearMonth } from '../lib/month'
-import { formatEokAxis, isolatedMonths, monthTicks, priceTicks, type SplitRow } from '../lib/series'
+import { formatEokAxis, isolatedMonths, monthTicks, niceTicks, type SplitRow } from '../lib/series'
 
 type Row = SplitRow<Schemas['MonthlyPrice']>
 
@@ -12,7 +12,7 @@ export const PRICE_CHART_HEIGHT = 260
 /** 월별 중앙값 선. rows는 기간 범위로 채우고(fillMonths) 나눈(splitProvisional) 행 */
 export function PriceChart({ rows, provisionalFrom }: { rows: readonly Row[]; provisionalFrom: YearMonth }) {
   const { ticks, format } = monthTicks(rows[0].month, rows[rows.length - 1].month)
-  const yTicks = priceTicks(rows.flatMap((row) => (row.item ? [row.item.medianAmount] : [])))
+  const yTicks = niceTicks(rows.flatMap((row) => (row.item ? [row.item.medianAmount] : [])))
   const isolated = isolatedMonths(rows, provisionalFrom)
   const rowsByMonth = new Map(rows.map((row) => [row.month, row]))
 

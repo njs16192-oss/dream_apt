@@ -15,35 +15,38 @@ export function TradeList({ trades }: { trades: readonly Trade[] }) {
           </li>
         ))}
       </ul>
-      <table className="hidden w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-sm md:table">
-        <thead className="bg-slate-50 text-left text-xs text-slate-500">
-          <tr>
-            <th className="px-3 py-2 font-medium">계약일</th>
-            <th className="px-3 py-2 text-right font-medium">거래금액</th>
-            <th className="px-3 py-2 text-right font-medium">전용면적</th>
-            <th className="px-3 py-2 text-right font-medium">층</th>
-            <th className="px-3 py-2 font-medium">동</th>
-            <th className="px-3 py-2 font-medium">거래 유형</th>
-            <th className="px-3 py-2 font-medium">등기일</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {trades.map((trade) => (
-            <tr key={trade.id}>
-              <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 tabular-nums">{formatDate(trade.dealDate)}</td>
-              <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                {trade.bulk && <BulkBadge />}
-                <span className="font-semibold text-slate-900">{formatManwon(trade.dealAmount)}</span>
-              </td>
-              <td className="px-3 py-2.5 text-right whitespace-nowrap text-slate-600 tabular-nums">{trade.exclusiveArea}㎡</td>
-              <td className="px-3 py-2.5 text-right whitespace-nowrap text-slate-600">{formatFloor(trade.floor)}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{trade.aptDong ? formatDong(trade.aptDong) : '-'}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{trade.dealingGbn ?? '-'}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 tabular-nums">{registrationLabel(trade) ?? '-'}</td>
+      {/* 표 요소에는 border-radius·overflow가 듣지 않아 모서리가 둥글게 잘리지 않는다. 감싸는 div가 맡는다 */}
+      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white md:block">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-3 py-2 font-medium">계약일</th>
+              <th className="px-3 py-2 text-right font-medium">거래금액</th>
+              <th className="px-3 py-2 text-right font-medium">전용면적</th>
+              <th className="px-3 py-2 text-right font-medium">층</th>
+              <th className="px-3 py-2 font-medium">동</th>
+              <th className="px-3 py-2 font-medium">거래 유형</th>
+              <th className="px-3 py-2 font-medium">등기일</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {trades.map((trade) => (
+              <tr key={trade.id}>
+                <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 tabular-nums">{formatDate(trade.dealDate)}</td>
+                <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                  {trade.bulk && <BulkBadge />}
+                  <span className="font-semibold text-slate-900">{formatManwon(trade.dealAmount)}</span>
+                </td>
+                <td className="px-3 py-2.5 text-right whitespace-nowrap text-slate-600 tabular-nums">{trade.exclusiveArea}㎡</td>
+                <td className="px-3 py-2.5 text-right whitespace-nowrap text-slate-600">{formatFloor(trade.floor)}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{trade.aptDong ? formatDong(trade.aptDong) : '-'}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{trade.dealingGbn ?? '-'}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 tabular-nums">{registrationLabel(trade) ?? '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   )
 }

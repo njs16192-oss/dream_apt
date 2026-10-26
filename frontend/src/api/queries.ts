@@ -62,3 +62,15 @@ export function complexMonthlyPricesQuery(aptSeq: string, areaGroup: number) {
         .then(unwrap),
   })
 }
+
+/**
+ * 구 월별 거래량. 서버 최대 120개월을 한 번에 받아 화면에서 자른다 (ADR 008 ②).
+ * from·to는 호출하는 쪽에서 서울 기준 이번 달로 정해 둘 다 보낸다 (RegionPage 참고).
+ */
+export function regionMonthlyVolumesQuery(sggCd: string, from: string, to: string) {
+  return queryOptions({
+    queryKey: ['regions', sggCd, 'monthly', from, to],
+    queryFn: () =>
+      api.GET('/api/regions/{sggCd}/monthly', { params: { path: { sggCd }, query: { from, to } } }).then(unwrap),
+  })
+}

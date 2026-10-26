@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fillMonths } from './month'
-import { formatEokAxis, isolatedMonths, monthTicks, priceTicks, seoulMonth, splitProvisional } from './series'
+import { fillVolumeMonths, formatEokAxis, isolatedMonths, monthTicks, niceTicks, seoulMonth, splitProvisional } from './series'
 
 type Item = { month: string; v: number }
 const item = (month: string, v: number): Item => ({ month, v })
@@ -112,23 +112,45 @@ describe('seoulMonth', () => {
   })
 })
 
-describe('priceTicks', () => {
+describe('niceTicks', () => {
   it('데이터 범위를 덮는 깔끔한 간격으로 나누고 0에서 시작하지 않는다', () => {
-    expect(priceTicks([279500, 305500])).toEqual([270000, 280000, 290000, 300000, 310000])
-    expect(priceTicks([190000, 310000])).toEqual([150000, 200000, 250000, 300000, 350000])
+    expect(niceTicks([279500, 305500])).toEqual([270000, 280000, 290000, 300000, 310000])
+    expect(niceTicks([190000, 310000])).toEqual([150000, 200000, 250000, 300000, 350000])
   })
 
   it('경계에 딱 맞으면 넘치지 않는다', () => {
-    expect(priceTicks([100000, 140000])).toEqual([100000, 110000, 120000, 130000, 140000])
+    expect(niceTicks([100000, 140000])).toEqual([100000, 110000, 120000, 130000, 140000])
   })
 
   it('값이 하나뿐이면 위아래로 띄운다', () => {
-    const ticks = priceTicks([245000])
+    const ticks = niceTicks([245000])
     expect(ticks[0]).toBeLessThan(245000)
     expect(ticks.at(-1)).toBeGreaterThan(245000)
   })
 
-  it('작은 금액도 1만원보다 잘게 나누지 않는다', () => {
-    expect(priceTicks([9000, 9002]).every(Number.isInteger)).toBe(true)
+  it('0을 같이 넘기면 0부터 (거래량)', () => {
+    expect(niceTicks([0, 1750])).toEqual([0, 500, 1000, 1500, 2000])
+    expect(niceTicks([0, 87])).toEqual([0, 25, 50, 75, 100])
+  })
+
+  it('1보다 잘게 나누지 않는다 (만원, 건)', () => {
+    expect(niceTicks([9000, 9002]).every(Number.isInteger)).toBe(true)
+  })
+})
+
+describe('fillVolumeMonths', () => {
+  it('응답에 없는 달을 0건으로 채우고, 채운 달의 집계 중 여부는 provisionalFrom으로 정한다', () => {
+    const rows = fillVolumeMonths(
+      [{ month: '2026-08', count: 412, bulkCount: 12, provisional: false }],
+      '2026-07',
+      '2026-10',
+      '2026-09',
+    )
+    expect(rows).toEqual([
+      { month: '2026-07', count: 0, bulkCount: 0, provisional: false },
+      { month: '2026-08', count: 412, bulkCount: 12, provisional: false },
+      { month: '2026-09', count: 0, bulkCount: 0, provisional: true },
+      { month: '2026-10', count: 0, bulkCount: 0, provisional: true },
+    ])
   })
 })

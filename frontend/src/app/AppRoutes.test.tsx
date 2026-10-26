@@ -21,9 +21,12 @@ describe('AppRoutes', () => {
     expect(server.to('/api/complexes/11710-1234')).toHaveLength(1)
   })
 
-  it('구 거래량 경로', () => {
+  it('구 거래량은 경로의 sggCd로 거래량을 불러온다', async () => {
+    const server = mockApi({ '/api/regions/11710/monthly': { status: 404, body: { status: 404 } } })
     renderWithProviders(<AppRoutes />, { route: '/regions/11710' })
-    expect(screen.getByRole('heading', { name: '구 거래량 11710' })).toBeInTheDocument()
+
+    expect(await screen.findByText('구를 찾을 수 없어요')).toBeInTheDocument()
+    expect(server.to('/api/regions/11710/monthly')).toHaveLength(1)
   })
 
   it('없는 경로는 404 안내를 보여준다', () => {

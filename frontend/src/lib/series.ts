@@ -1,4 +1,4 @@
-import { addMonths, compareMonths, type FilledMonth, type YearMonth } from './month'
+import { addMonths, compareMonths, fillMonths, type FilledMonth, type YearMonth } from './month'
 
 export type SplitRow<T> = {
   month: YearMonth
@@ -88,11 +88,11 @@ export function seoulMonth(now: Date = new Date()): YearMonth {
 }
 
 /**
- * 가격 y축 눈금. 0에서 시작하지 않고 데이터 범위를 덮는 깔끔한 간격(1·2·2.5·5 × 10ⁿ 만원)으로 나눈다.
- * Recharts의 domain 'auto'는 "30.55억, 29.9억"처럼 끝자리가 지저분한 눈금을 낼 수 있다.
- * 값이 하나뿐이면 위아래 5%를 띄운다.
+ * y축 눈금. 데이터 범위를 덮는 깔끔한 간격(1·2·2.5·5 × 10ⁿ)으로 나눈다.
+ * Recharts 기본 눈금은 "30.55억, 29.9억", "450, 1,350"처럼 끝자리가 지저분할 수 있다.
+ * 가격은 값만 넘겨 0에서 시작하지 않게, 거래량은 0을 같이 넘겨 0부터 시작하게 쓴다. 값이 하나뿐이면 위아래 5%를 띄운다.
  */
-export function priceTicks(values: readonly number[], count = 5): number[] {
+export function niceTicks(values: readonly number[], count = 5): number[] {
   let min = Math.min(...values)
   let max = Math.max(...values)
   if (min === max) {
@@ -109,4 +109,22 @@ export function priceTicks(values: readonly number[], count = 5): number[] {
     if (tick >= max) break
   }
   return ticks
+}
+
+export type VolumeRow = { month: YearMonth; count: number; bulkCount: number; provisional: boolean }
+
+/**
+ * 거래량은 빈 달(응답에 없음)을 0건으로 채운다. 거래가 없던 달의 거래량은 실제로 0이다.
+ * 가격과 다르다: 거래 없는 달의 가격은 0이 아니라 모름(null)이라 선을 끊는다.
+ */
+export function fillVolumeMonths(
+  items: readonly VolumeRow[],
+  from: YearMonth,
+  to: YearMonth,
+  provisionalFrom: YearMonth,
+): VolumeRow[] {
+  return fillMonths(items, from, to).map(
+    ({ month, item }) =>
+      item ?? { month, count: 0, bulkCount: 0, provisional: compareMonths(month, provisionalFrom) >= 0 },
+  )
 }
