@@ -116,7 +116,7 @@ export function SearchPage() {
       {showGuide ? (
         <EmptyState title="단지 이름으로 검색하세요">한 글자부터 검색할 수 있어요. 예: 헬리오시티, 래미안, 롯데캐슬</EmptyState>
       ) : search.isError ? (
-        <ErrorState error={search.error} onRetry={() => search.refetch()} />
+        <ErrorState error={search.error} onRetry={() => search.refetch()} showSearchLink={false} />
       ) : search.data === undefined ? (
         <Loading label="검색 중" />
       ) : search.data.length === 0 ? (

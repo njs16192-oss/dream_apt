@@ -89,6 +89,20 @@ describe('SearchPage', () => {
     expect(screen.queryByText(/검색 결과가 없어요/)).not.toBeInTheDocument()
   })
 
+  it('끝 글자를 조합하는 중에 멈추면 자모를 뗀 검색어로 요청하고, 같은 캐시를 쓴다', async () => {
+    const server = setup({ 롯: [complex({ name: '롯데캐슬' })] })
+    renderWithProviders(<SearchPage />)
+
+    await userEvent.type(searchBox(), '롯')
+    expect(await screen.findByText('롯데캐슬')).toBeInTheDocument()
+    await userEvent.type(searchBox(), 'ㄷ')
+    await wait(400)
+
+    expect(server.to(SEARCH).map((url) => url.searchParams.get('q'))).toEqual(['롯'])
+    expect(screen.getByText('롯데캐슬')).toBeInTheDocument()
+    expect(screen.queryByText(/검색 결과가 없어요/)).not.toBeInTheDocument()
+  })
+
   it('URL로 들어오면 입력값과 구 선택을 복원하고 바로 검색한다', async () => {
     const server = setup({ 헬리오: [complex()] })
     renderWithProviders(<SearchPage />, { route: '/?q=헬리오&sggCd=11710' })
@@ -237,6 +251,8 @@ describe('SearchPage', () => {
 
     expect(await screen.findByText('요청을 처리할 수 없어요')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
+    // 지금 페이지가 검색이라 "단지 검색으로 가기"는 자기 자신을 가리킨다
+    expect(screen.queryByRole('link', { name: '단지 검색으로 가기' })).not.toBeInTheDocument()
     expect(server.to(SEARCH)).toHaveLength(1)
   })
 })

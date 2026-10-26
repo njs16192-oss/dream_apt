@@ -23,6 +23,16 @@ describe('ErrorState', () => {
   })
 
   it.each([
+    ['404', new ApiError(404)],
+    ['400', new ApiError(400)],
+  ])('%s라도 showSearchLink=false면 검색 링크를 숨긴다', (_, error) => {
+    renderWithProviders(<ErrorState error={error} showSearchLink={false} />)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '단지 검색으로 가기' })).not.toBeInTheDocument()
+  })
+
+  it.each([
     ['5xx', new ApiError(500)],
     ['네트워크 오류', new TypeError('Failed to fetch')],
   ])('%s는 다시 시도 버튼을 누르면 onRetry를 부른다', async (_, error) => {
