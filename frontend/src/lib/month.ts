@@ -76,3 +76,10 @@ export function chartRange(
   )
   return { from: first !== null && compareMonths(first, to) < 0 ? first : to, to }
 }
+
+export const DEFAULT_PERIOD: Period = '3y'
+
+/** URL의 ?period= 값. 없거나 모르는 값이면 기본(3년) */
+export function parsePeriod(raw: string | null): Period {
+  return PERIODS.find((p) => p.value === raw)?.value ?? DEFAULT_PERIOD
+}

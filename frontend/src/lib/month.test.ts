@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addMonths, chartRange, fillMonths, monthOf } from './month'
+import { addMonths, chartRange, fillMonths, monthOf, parsePeriod } from './month'
 
 describe('addMonths', () => {
   it('연도 경계를 넘는다', () => {
@@ -81,5 +81,15 @@ describe('chartRange', () => {
 
   it('전체인데 데이터가 없으면 기준 달 하나', () => {
     expect(chartRange('all', '2026-10-25', [])).toEqual({ from: '2026-10', to: '2026-10' })
+  })
+})
+
+describe('parsePeriod', () => {
+  it.each(['1y', '3y', '5y', 'all'])('%s는 그대로', (raw) => {
+    expect(parsePeriod(raw)).toBe(raw)
+  })
+
+  it.each([null, '', '2y', 'ALL'])('%s 이면 기본 3년', (raw) => {
+    expect(parsePeriod(raw)).toBe('3y')
   })
 })
