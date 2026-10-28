@@ -89,20 +89,26 @@ export function seoulMonth(now: Date = new Date()): YearMonth {
 
 /**
  * y축 눈금. 데이터 범위를 덮는 깔끔한 간격(1·2·2.5·5 × 10ⁿ)으로 나눈다.
+ * 간격은 정수만 쓴다 (만원, 건). 그래서 2.5 × 10⁰은 건너뛰고 1보다 잘게 나누지 않는다.
  * Recharts 기본 눈금은 "30.55억, 29.9억", "450, 1,350"처럼 끝자리가 지저분할 수 있다.
- * 가격은 값만 넘겨 0에서 시작하지 않게, 거래량은 0을 같이 넘겨 0부터 시작하게 쓴다. 값이 하나뿐이면 위아래 5%를 띄운다.
+ * 가격은 값만 넘겨 0에서 시작하지 않게, 거래량은 0을 같이 넘겨 0부터 시작하게 쓴다.
+ * 값이 하나뿐이면 위아래 5%를 띄우되, 0 아래로는 내려가지 않는다.
  */
 export function niceTicks(values: readonly number[], count = 5): number[] {
   let min = Math.min(...values)
   let max = Math.max(...values)
   if (min === max) {
     const pad = Math.max(Math.round(max * 0.05), 1)
-    min -= pad
+    min = min >= 0 ? Math.max(min - pad, 0) : min - pad
     max += pad
   }
   const rough = (max - min) / (count - 1)
   const magnitude = 10 ** Math.floor(Math.log10(rough))
-  const step = Math.max([1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!, 1)
+  const step =
+    [1, 2, 2.5, 5, 10]
+      .map((m) => m * magnitude)
+      .filter(Number.isInteger)
+      .find((s) => s >= rough) ?? 1
   const ticks: number[] = []
   for (let tick = Math.floor(min / step) * step; tick < max + step; tick += step) {
     ticks.push(tick)

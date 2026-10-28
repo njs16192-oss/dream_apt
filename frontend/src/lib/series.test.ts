@@ -133,8 +133,14 @@ describe('niceTicks', () => {
     expect(niceTicks([0, 87])).toEqual([0, 25, 50, 75, 100])
   })
 
-  it('1보다 잘게 나누지 않는다 (만원, 건)', () => {
+  it('간격은 정수다: 1보다 잘게 나누지 않고 2.5는 건너뛴다 (만원, 건)', () => {
     expect(niceTicks([9000, 9002]).every(Number.isInteger)).toBe(true)
+    expect(niceTicks([0, 9])).toEqual([0, 5, 10])
+    expect(niceTicks([0, 10])).toEqual([0, 5, 10])
+  })
+
+  it('값이 모두 0이면 음수로 내려가지 않는다', () => {
+    expect(niceTicks([0])).toEqual([0, 1])
   })
 })
 
