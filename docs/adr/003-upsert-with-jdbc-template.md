@@ -52,6 +52,7 @@
   - batch 결과의 영향 행 수가 "신규 + 실제 갱신"이 되어 건수 계산에 쓸 수 있다.
   - `IS DISTINCT FROM`은 NULL끼리를 같다고 본다. `=`를 쓰면 `NULL = NULL`이 NULL이 되어 비교가 틀어진다.
 - **갱신 대상 제한**: 키에 없는, 나중에 채워지는 값(`apt_dong`, `cancelled`, `cancel_date`, `registered_date`)만 갱신한다. 단지는 `location`, `created_at`을 건드리지 않는다.
+  - 예외 (2026-10-28, [ADR 010](010-geocoding.md) ⑤): 주소(시군구·법정동·지번·도로명)가 바뀌면 `location`과 지오코딩 기록(`geocode_attempted_at`, `geocode_error`)을 NULL로 되돌려 다음 지오코딩 때 새 주소로 다시 받게 한다.
 
 ### 신규/갱신 건수 계산
 JDBC batch는 INSERT든 UPDATE든 영향 행 수가 1이라 둘을 구분할 수 없다. `RETURNING (xmax = 0)` 방식은 batch에서 결과를 받을 수 없다. 그래서 같은 트랜잭션 안에서 upsert 전후 행 수를 비교한다.
