@@ -41,7 +41,7 @@ class ValidAptTradeViewIntegrationTest {
         insertTrade(COMPLEX, DAY, "84.99", 2, true, false);
         insertTrade(COMPLEX, DAY, "84.99", 3, false, true);
 
-        assertThat(jdbc.queryForList("SELECT id FROM valid_apt_trade", Long.class)).hasSize(2);
+        assertThat(jdbc.queryForList("SELECT id FROM valid_apt_trade", Long.class)).containsExactly(valid);
     }
 
     @Test
