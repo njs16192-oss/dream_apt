@@ -43,6 +43,12 @@ dreamapt:
     api-key: ${DATA_GO_KR_API_KEY:}
     # API 호출 사이 최소 간격 (ADR 006)
     request-interval: ${DATA_GO_KR_REQUEST_INTERVAL:300ms}
+  # 행정안전부 도로명주소 API (ADR 010). 단지 좌표 지오코딩에 쓴다. 검색·좌표제공 API 키를 따로 발급받는다
+  juso:
+    base-url: ${JUSO_BASE_URL:https://business.juso.go.kr/addrlink}
+    search-api-key: ${JUSO_SEARCH_API_KEY:}
+    coord-api-key: ${JUSO_COORD_API_KEY:}
+    request-interval: ${JUSO_REQUEST_INTERVAL:100ms}
   # 새 missing이 최소 건수 이상이고 기존 유효 행 대비 비율이 한도를 넘으면 missing 표시를 보류 (ADR 004)
   collect:
     missing-ratio-limit: ${COLLECT_MISSING_RATIO_LIMIT:0.2}
