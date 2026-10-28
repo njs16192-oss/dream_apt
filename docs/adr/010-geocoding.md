@@ -84,7 +84,8 @@ curl -X POST "http://localhost:8080/api/admin/geocode?limit=1000"
 
 - 좌표는 주출입구 기준이다. 큰 단지는 단지 중심과 수백 m 차이가 날 수 있다
 - 도로명주소 API에는 공개된 호출 한도가 없다. 한도에 걸리면 어떤 오류 코드로 오는지 모른다 (지금은 OTHER로 분류되어 그 단지가 API_ERROR로 기록된다)
-- 공식 개발 가이드 페이지를 외부에서 열 수 없었다. 응답 구조(`results.common.errorCode`, `results.juso`)는 키 없이 호출한 실제 오류 응답으로 확인했다. 결과 필드(`admCd`, `entX` 등)는 공개 사용 예를 기준으로 했으며, 실제 키로 적재할 때 대조하고 샘플(`src/test/resources/sample/juso-*.json`)을 실제 응답으로 바꾼다
+- 공식 개발 가이드 페이지를 외부에서 열 수 없었다. 응답 구조(`results.common.errorCode`, `results.juso`)와 검색 결과 필드(`admCd`, `rnMgtSn`, `udrtYn`, `buldMnnm`, `buldSlno`)는 실제 응답으로 확인했다 (2026-10-28, `juso-search-sample.json`). 좌표 필드(`entX`, `entY`)는 좌표제공 API 키 승인 전이라 공개 사용 예를 기준으로 했고, 키가 나오면 대조해서 `juso-coord-sample.json`을 실제 응답으로 바꾼다
+- 검색 키로 미리 확인한 결과 (2026-10-28): 헬리오시티는 도로명·지번 모두 법정동이 맞는 1건, `홍은동 산11-244`는 1건(법정동 일치), `만리동2가 176-1`·`고덕동 BL-3-1`·`항동 가-238`은 0건이다. 특이한 지번 일부는 NOT_FOUND로 남을 것이다
 
 ## 4. 재검토 조건
 

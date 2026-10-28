@@ -17,13 +17,16 @@ class JusoResponseParserTest {
 
     private final JusoResponseParser parser = new JusoResponseParser();
 
+    // juso-search-sample.json은 실제 응답 (2026-10-28, "서울특별시 송파구 송파대로 345")
     @Test
     void 검색_결과를_파싱한다() throws IOException {
         assertThat(parser.parseSearch(sample("juso-search-sample.json"))).containsExactly(
-                new JusoAddress("1171010700", "117103123007", "0", "345", "0",
+                new JusoAddress("1171010700", "117102005011", "0", "345", "0",
                         "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)"));
     }
 
+    // juso-coord-sample.json은 좌표제공 API 키 승인 전이라 손으로 만든 것. 좌표는 WGS84 (127.1078, 37.4966)을
+    // UTM-K로 바꾼 값이다. 키가 나오면 실제 응답으로 바꾼다
     @Test
     void 좌표를_파싱한다() throws IOException {
         assertThat(parser.parseCoord(sample("juso-coord-sample.json")))

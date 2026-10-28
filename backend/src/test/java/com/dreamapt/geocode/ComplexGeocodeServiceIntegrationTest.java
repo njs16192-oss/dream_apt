@@ -217,6 +217,6 @@ class ComplexGeocodeServiceIntegrationTest {
     }
 
     private static JusoAddress address(String admCd) {
-        return new JusoAddress(admCd, "117103123007", "0", "345", "0", "서울특별시 송파구 송파대로 345");
+        return new JusoAddress(admCd, "117102005011", "0", "345", "0", "서울특별시 송파구 송파대로 345");
     }
 }
