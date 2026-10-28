@@ -44,6 +44,11 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+// Windows JDK 17은 기본 인코딩이 MS949라 한글 주석·@Schema 설명이 깨질 수 있다. OS와 무관하게 UTF-8로 컴파일한다
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 }
