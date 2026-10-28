@@ -57,3 +57,69 @@ jobs:
       - run: npm test
       # chunk 크기 경고(500 kB)는 실패로 보지 않는다. 코드 분할은 배포 때 검토
       - run: npm run build
+
+  # 커밋된 schema.d.ts가 백엔드 API 문서와 같은지 (ADR 008 재생성 규칙). 로컬 gen:api와 같은 절차를 밟는다
+  api-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: dreamapt
+          POSTGRES_USER: dreamapt
+          POSTGRES_PASSWORD: dreamapt
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dreamapt"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew bootJar
+        working-directory: backend
+      # 프로필 없이 jar로 띄운다 (운영과 같은 조건, public 그룹은 프로필과 무관). 빈 DB에 Flyway를 적용하고, 수집 Job은 자동 실행되지 않는다
+      - name: 백엔드 기동
+        run: nohup java -jar backend/build/libs/app.jar > backend.log 2>&1 &
+      - name: 백엔드 준비 대기
+        run: |
+          for i in $(seq 60); do
+            if curl -sf http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
+              echo "UP (${i}회째)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::백엔드가 120초 안에 UP이 되지 않았습니다. 아래 로그를 확인하세요"
+          cat backend.log
+          exit 1
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run gen:api
+        working-directory: frontend
+      - name: schema.d.ts 비교
+        working-directory: frontend
+        run: |
+          if ! git diff --exit-code src/api/schema.d.ts; then
+            echo "::error::schema.d.ts가 백엔드 API 문서와 다릅니다. 백엔드를 띄우고 frontend에서 npm run gen:api를 실행한 뒤 커밋하세요"
+            exit 1
+          fi
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-log
+          path: backend.log
+          retention-days: 7
+          if-no-files-found: ignore
