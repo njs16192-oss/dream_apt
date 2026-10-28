@@ -24,10 +24,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TradeReconcileRepository {
 
+    // 주소(시군구·법정동·지번·도로명)가 바뀌면 옛 주소 기준 좌표를 지워서 다음 지오코딩 때 다시 받게 한다 (ADR 010).
+    // SET의 오른쪽은 갱신 전 값을 읽으므로 아래 CASE의 apt_complex.* 는 바뀌기 전 주소다
+    private static final String ADDRESS_CHANGED = """
+            (apt_complex.sgg_cd, apt_complex.umd_cd, apt_complex.jibun, apt_complex.road_address)
+                IS DISTINCT FROM (EXCLUDED.sgg_cd, EXCLUDED.umd_cd, EXCLUDED.jibun, EXCLUDED.road_address)""";
+
     private static final String UPSERT_COMPLEX = """
             INSERT INTO apt_complex (apt_seq, name, sgg_cd, umd_cd, umd_nm, jibun, road_address, build_year)
             VALUES (:aptSeq, :name, :sggCd, :umdCd, :umdNm, :jibun, :roadAddress, :buildYear)
             ON CONFLICT (apt_seq) DO UPDATE SET
+                location = CASE WHEN %1$s THEN NULL ELSE apt_complex.location END,
+                geocode_attempted_at = CASE WHEN %1$s THEN NULL ELSE apt_complex.geocode_attempted_at END,
+                geocode_error = CASE WHEN %1$s THEN NULL ELSE apt_complex.geocode_error END,
                 name = EXCLUDED.name,
                 sgg_cd = EXCLUDED.sgg_cd,
                 umd_cd = EXCLUDED.umd_cd,
@@ -41,7 +50,7 @@ public class TradeReconcileRepository {
                 IS DISTINCT FROM
                   (EXCLUDED.name, EXCLUDED.sgg_cd, EXCLUDED.umd_cd, EXCLUDED.umd_nm,
                    EXCLUDED.jibun, EXCLUDED.road_address, EXCLUDED.build_year)
-            """;
+            """.formatted(ADDRESS_CHANGED);
 
     // 트랜잭션이 끝나면 자동으로 풀린다. 같은 구×월의 동시 수집만 직렬화한다
     private static final String LOCK_MONTH = "SELECT pg_advisory_xact_lock(hashtext(:lockKey))";

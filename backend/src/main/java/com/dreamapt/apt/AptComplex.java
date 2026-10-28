@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 아파트 단지. location(geometry) 컬럼은 좌표 변환 단계에서 매핑한다.
+ * 아파트 단지. 좌표(location)와 지오코딩 기록 컬럼은 매핑하지 않고 JDBC로만 다룬다 (ADR 010).
  */
 @Entity
 @Table(name = "apt_complex")
