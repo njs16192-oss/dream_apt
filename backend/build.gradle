@@ -53,6 +53,11 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+// 실행 jar 이름을 version과 무관하게 고정한다. CI(api-schema job)와 8단계 Dockerfile이 이 경로를 쓴다
+tasks.named('bootJar') {
+	archiveFileName = 'app.jar'
+}
+
 // 로컬 개발(./gradlew bootRun)은 활성 프로필을 주지 않으면 local 프로필로 뜬다.
 // jar 실행(k8s)과 --spring.profiles.active=batch 실행에는 적용되지 않는다
 tasks.named('bootRun') {

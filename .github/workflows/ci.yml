@@ -87,7 +87,7 @@ jobs:
         working-directory: backend
       # 프로필 없이 jar로 띄운다 (운영과 같은 조건, public 그룹은 프로필과 무관). 빈 DB에 Flyway를 적용하고, 수집 Job은 자동 실행되지 않는다
       - name: 백엔드 기동
-        run: nohup java -jar backend/build/libs/backend-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+        run: nohup java -jar backend/build/libs/app.jar > backend.log 2>&1 &
       - name: 백엔드 준비 대기
         run: |
           for i in $(seq 60); do
