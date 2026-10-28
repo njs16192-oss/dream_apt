@@ -129,7 +129,7 @@ describe('niceTicks', () => {
   })
 
   it('0을 같이 넘기면 0부터 (거래량)', () => {
-    expect(niceTicks([0, 1750])).toEqual([0, 500, 1000, 1500])
+    expect(niceTicks([0, 1750])).toEqual([0, 500, 1000, 1500, 2000])
     expect(niceTicks([0, 87])).toEqual([0, 25, 50, 75, 100])
   })
 
