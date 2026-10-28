@@ -27,6 +27,7 @@ docs/troubleshooting.md
 - Frontend: `cd frontend && npm run dev` (5173, `/api`는 8080으로 프록시)
   - 테스트: `npm test` (Vitest)
   - API 타입 재생성: 백엔드를 띄운 상태에서 `npm run gen:api` → `src/api/schema.d.ts` (커밋 대상, docs/adr/008-frontend-structure.md). 백엔드 응답·경로를 바꾸면 같은 PR에서 재생성
+- CI: GitHub Actions (`.github/workflows/ci.yml`, docs/adr/009-ci.md). PR마다 `./gradlew test`와 프론트 lint·test·build
 - 개발 환경은 Windows + VS Code
 
 ## 데이터 설계 (반드시 docs/adr/002-trade-data-schema.md 참고)
