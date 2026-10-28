@@ -18,7 +18,8 @@ import lombok.extern.slf4j.Slf4j;
  * <li>결과의 법정동코드(admCd)가 단지의 sgg_cd + umd_cd와 같은 첫 건만 쓴다</li>
  * <li>그 건물의 주출입구 좌표(UTM-K)를 받아 WGS84로 바꿔 저장한다</li>
  * </ol>
- * 실패 사유는 기록해서 다시 호출하지 않는다. 일시 오류는 기록하지 않고 다음 실행에 맡기고, 키 오류는 실행을 멈춘다.
+ * 실패 사유는 기록해서 다시 호출하지 않는다. 일시 오류는 기록하지 않고 다음 실행에 맡기되 연속되면 멈추고,
+ * 키 오류는 예외로 실행을 멈춘다.
  */
 @Slf4j
 @Service
@@ -26,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ComplexGeocodeService {
 
     private static final int LOG_EVERY = 100;
+    // 일시 오류가 이만큼 연속되면 서버 장애로 보고 실행을 멈춘다 (ADR 010 ④)
+    static final int MAX_CONSECUTIVE_TRANSIENT = 5;
     // "송파대로 345", "통일로 555-1"처럼 건물번호가 있어야 도로명으로 찾을 수 있다 ("만리재로"만 있는 단지가 있다)
     private static final Pattern ROAD_WITH_NUMBER = Pattern.compile("^\\S+ \\d+(-\\d+)?$");
 
@@ -37,12 +40,13 @@ public class ComplexGeocodeService {
         log.info("지오코딩 시작: 대상 {}개 (limit={}, retryFailed={})", targets.size(), limit, retryFailed);
 
         Counts counts = new Counts();
+        int consecutiveTransient = 0;
         for (GeocodeTarget target : targets) {
             Optional<GeocodeError> error;
             try {
                 error = geocodeOne(target);
             } catch (JusoApiException e) {
-                if (e.kind() == JusoApiException.Kind.AUTH) {
+                if (e.kind().abortsRun()) {
                     log.warn("지오코딩 중단: {} (처리 {}개)", e.getMessage(), counts.attempted);
                     throw e;
                 }
@@ -50,12 +54,19 @@ public class ComplexGeocodeService {
                     log.warn("일시 오류, 다음 실행에서 다시 시도: aptSeq={} {}", target.aptSeq(), e.getMessage());
                     counts.attempted++;
                     counts.transientError++;
+                    // 서버가 내려가 있으면 남은 단지도 모두 타임아웃을 겪는다. 연속되면 멈추고 지금까지의 결과를 돌려준다
+                    if (++consecutiveTransient >= MAX_CONSECUTIVE_TRANSIENT) {
+                        log.warn("일시 오류가 {}회 연속되어 멈춤 (처리 {}개)", consecutiveTransient, counts.attempted);
+                        counts.stopped = true;
+                        break;
+                    }
                     continue;
                 }
                 log.warn("API 오류: aptSeq={} {}", target.aptSeq(), e.getMessage());
                 error = Optional.of(GeocodeError.API_ERROR);
-                repository.saveFailure(target, GeocodeError.API_ERROR);
+                save(target, () -> repository.saveFailure(target, GeocodeError.API_ERROR));
             }
+            consecutiveTransient = 0;
             counts.add(error);
             if (counts.attempted % LOG_EVERY == 0) {
                 log.info("지오코딩 진행: {}/{} (성공 {})", counts.attempted, targets.size(), counts.succeeded);
@@ -130,6 +141,7 @@ public class ComplexGeocodeService {
         int noCoord;
         int apiError;
         int transientError;
+        boolean stopped;
 
         void add(Optional<GeocodeError> error) {
             attempted++;
@@ -147,7 +159,7 @@ public class ComplexGeocodeService {
 
         GeocodeResult toResult(long remaining) {
             return new GeocodeResult(attempted, succeeded, notFound, mismatch, noCoord, apiError, transientError,
-                    remaining);
+                    stopped, remaining);
         }
     }
 }

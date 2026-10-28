@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -59,7 +60,7 @@ class ComplexGeocodeServiceIntegrationTest {
 
         GeocodeResult result = service.geocode(10, false);
 
-        assertThat(result).isEqualTo(new GeocodeResult(1, 1, 0, 0, 0, 0, 0, 0));
+        assertThat(result).isEqualTo(new GeocodeResult(1, 1, 0, 0, 0, 0, 0, false, 0));
         Map<String, Object> row = row(HELIO);
         assertThat((Double) row.get("lng")).isCloseTo(127.1078, within(1e-6));
         assertThat((Double) row.get("lat")).isCloseTo(37.4966, within(1e-6));
@@ -128,9 +129,48 @@ class ComplexGeocodeServiceIntegrationTest {
 
         GeocodeResult result = service.geocode(10, false);
 
-        assertThat(result).isEqualTo(new GeocodeResult(3, 1, 0, 0, 0, 1, 1, 1));
+        assertThat(result).isEqualTo(new GeocodeResult(3, 1, 0, 0, 0, 1, 1, false, 1));
         assertThat(row("11710-1")).containsEntry("geocode_error", "API_ERROR");
         assertThat(row("11710-2")).containsEntry("geocode_attempted_at", null);
+    }
+
+    @Test
+    void 일시_오류가_연속되면_멈추고_결과를_돌려준다() {
+        for (int i = 1; i <= 7; i++) {
+            complex("11710-" + i, "10700", "가락동", String.valueOf(i), "송파대로 " + i);
+        }
+        given(client.search(anyString())).willThrow(new JusoApiException(Kind.TRANSIENT, "timeout"));
+
+        GeocodeResult result = service.geocode(100, false);
+
+        // HELIO까지 8개 중 5개째에서 멈춘다. 일시 오류는 기록하지 않으므로 8개 모두 남는다
+        assertThat(result.attempted()).isEqualTo(ComplexGeocodeService.MAX_CONSECUTIVE_TRANSIENT);
+        assertThat(result.transientError()).isEqualTo(ComplexGeocodeService.MAX_CONSECUTIVE_TRANSIENT);
+        assertThat(result.stopped()).isTrue();
+        assertThat(result.remaining()).isEqualTo(8);
+    }
+
+    @Test
+    void 일시_오류_사이에_다른_결과가_있으면_연속_횟수를_다시_센다() {
+        // apt_seq는 문자열 순: 11710-1 ~ 4(일시 오류), 5(결과 없음), 6 ~ 8(일시 오류), 8865(HELIO, 성공), 9(일시 오류).
+        // 다시 세지 않으면 5 다음에 7회째가 되어 멈춘다
+        for (int i = 1; i <= 9; i++) {
+            complex("11710-" + i, "10700", "가락동", String.valueOf(i), "송파대로 " + i);
+        }
+        given(client.search(anyString())).willThrow(new JusoApiException(Kind.TRANSIENT, "timeout"));
+        // anyString에 예외를 걸어 두었으므로 given(client.search(..)) 대신 호출하지 않는 형식으로 덮어쓴다
+        willReturn(List.of()).given(client).search("서울특별시 송파구 송파대로 5");
+        willReturn(List.of()).given(client).search("서울특별시 송파구 가락동 5");
+        willReturn(List.of(GARAK)).given(client).search(ROAD_KEYWORD);
+        given(client.coord(GARAK)).willReturn(Optional.of(HELIO_POINT));
+
+        GeocodeResult result = service.geocode(100, false);
+
+        assertThat(result.stopped()).isFalse();
+        assertThat(result.attempted()).isEqualTo(10);
+        assertThat(result.transientError()).isEqualTo(8);
+        assertThat(result.notFound()).isEqualTo(1);
+        assertThat(result.succeeded()).isEqualTo(1);
     }
 
     @Test

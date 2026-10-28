@@ -52,7 +52,7 @@ public class JusoApiClient {
     }
 
     public List<JusoAddress> search(String keyword) {
-        requireKeys();
+        requireKey(properties.searchApiKey(), "JUSO_SEARCH_API_KEY");
         // 값은 URI 변수로 넘긴다. 한글 검색어와 키의 특수문자가 올바르게 인코딩된다
         return parser.parseSearch(get("/addrLinkApi.do", "keyword=" + keyword, uri -> uri
                 .queryParam("confmKey", "{key}")
@@ -64,7 +64,7 @@ public class JusoApiClient {
     }
 
     public Optional<UtmkPoint> coord(JusoAddress address) {
-        requireKeys();
+        requireKey(properties.coordApiKey(), "JUSO_COORD_API_KEY");
         return parser.parseCoord(get("/addrCoordApi.do", "roadAddr=" + address.roadAddr(), uri -> uri
                 .queryParam("confmKey", "{key}")
                 .queryParam("admCd", "{admCd}")
@@ -93,10 +93,10 @@ public class JusoApiClient {
         }
     }
 
-    private void requireKeys() {
-        if (!properties.hasKeys()) {
-            throw new JusoApiException(Kind.AUTH,
-                    "도로명주소 API 키가 없습니다. 환경변수 JUSO_SEARCH_API_KEY, JUSO_COORD_API_KEY를 설정하세요.");
+    // 검색·좌표 키는 승인이 따로 나므로 각 호출에 필요한 키만 확인한다 (검색 키만으로 검색 응답을 확인할 수 있다)
+    private static void requireKey(String key, String envName) {
+        if (key == null || key.isBlank()) {
+            throw new JusoApiException(Kind.MISSING_KEY, "도로명주소 API 키가 없습니다. 환경변수 " + envName + "를 설정하세요.");
         }
     }
 

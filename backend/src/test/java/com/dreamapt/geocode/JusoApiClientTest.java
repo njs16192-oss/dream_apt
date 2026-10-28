@@ -35,19 +35,35 @@ class JusoApiClientTest {
     }
 
     @Test
-    void 키가_하나라도_없으면_호출하지_않고_AUTH() {
-        JusoApiClient noCoordKey = client("search-key", " ");
+    void 각_호출은_자기_키만_확인한다() {
+        JusoApiClient searchKeyOnly = client("search-key", " ");
 
-        assertThat(noCoordKey.hasKeys()).isFalse();
-        assertThatThrownBy(() -> noCoordKey.search("송파구 송파대로 345"))
-                .isInstanceOfSatisfying(JusoApiException.class, e -> assertThat(e.kind()).isEqualTo(Kind.AUTH))
+        // 검색 키만 있어도 검색은 호출까지 간다 (닿지 않는 주소라 연결 실패 = 일시 오류)
+        assertThatThrownBy(() -> searchKeyOnly.search("송파구 송파대로 345"))
+                .isInstanceOfSatisfying(JusoApiException.class, e -> assertThat(e.kind()).isEqualTo(Kind.TRANSIENT));
+        assertThatThrownBy(() -> searchKeyOnly.coord(HELIO))
+                .isInstanceOfSatisfying(JusoApiException.class,
+                        e -> assertThat(e.kind()).isEqualTo(Kind.MISSING_KEY))
                 .hasMessageContaining("JUSO_COORD_API_KEY");
+
+        assertThatThrownBy(() -> client(null, "coord-key").search("송파구 송파대로 345"))
+                .isInstanceOfSatisfying(JusoApiException.class,
+                        e -> assertThat(e.kind()).isEqualTo(Kind.MISSING_KEY))
+                .hasMessageContaining("JUSO_SEARCH_API_KEY");
+    }
+
+    @Test
+    void hasKeys는_두_키가_모두_있어야_true() {
+        assertThat(client("search-key", " ").hasKeys()).isFalse();
         assertThat(client(null, "coord-key").hasKeys()).isFalse();
         assertThat(client("search-key", "coord-key").hasKeys()).isTrue();
     }
 
+    private static final JusoAddress HELIO = new JusoAddress("1171010700", "117102005011", "0", "345", "0",
+            "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)");
+
     private static JusoApiClient client(String searchKey, String coordKey) {
-        // 호출 전에 키를 확인하므로 닿지 않는 주소를 써도 된다
+        // 실제 호출이 일어나도 바로 연결 실패하도록 닿지 않는 주소를 쓴다
         return new JusoApiClient(new JusoProperties("http://localhost:1", searchKey, coordKey, Duration.ZERO),
                 new JusoResponseParser());
     }

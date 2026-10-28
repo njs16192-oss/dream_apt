@@ -24,7 +24,7 @@ class AdminGeocodeControllerTest {
 
     @Test
     void 결과_요약을_반환한다() throws Exception {
-        given(service.geocode(1000, false)).willReturn(new GeocodeResult(1000, 990, 4, 3, 1, 1, 1, 7591));
+        given(service.geocode(1000, false)).willReturn(new GeocodeResult(1000, 990, 4, 3, 1, 1, 1, false, 7591));
 
         mockMvc.perform(post("/api/admin/geocode"))
                 .andExpect(status().isOk())
@@ -36,7 +36,7 @@ class AdminGeocodeControllerTest {
 
     @Test
     void 파라미터를_넘긴다() throws Exception {
-        given(service.geocode(50, true)).willReturn(new GeocodeResult(0, 0, 0, 0, 0, 0, 0, 0));
+        given(service.geocode(50, true)).willReturn(new GeocodeResult(0, 0, 0, 0, 0, 0, 0, false, 0));
 
         mockMvc.perform(post("/api/admin/geocode").param("limit", "50").param("retryFailed", "true"))
                 .andExpect(status().isOk());
@@ -49,11 +49,18 @@ class AdminGeocodeControllerTest {
     }
 
     @Test
-    void 키_오류는_502() throws Exception {
-        given(service.geocode(1000, false)).willThrow(new JusoApiException(Kind.AUTH, "키가 없습니다"));
+    void 키_설정이_없으면_503() throws Exception {
+        given(service.geocode(1000, false)).willThrow(new JusoApiException(Kind.MISSING_KEY, "키가 없습니다"));
 
         mockMvc.perform(post("/api/admin/geocode"))
-                .andExpect(status().isBadGateway())
+                .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.detail").value("키가 없습니다"));
+    }
+
+    @Test
+    void juso가_키를_거부하면_502() throws Exception {
+        given(service.geocode(1000, false)).willThrow(new JusoApiException(Kind.AUTH, "E0001"));
+
+        mockMvc.perform(post("/api/admin/geocode")).andExpect(status().isBadGateway());
     }
 }

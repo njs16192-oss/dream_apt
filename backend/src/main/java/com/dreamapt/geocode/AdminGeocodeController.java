@@ -36,10 +36,12 @@ public class AdminGeocodeController {
         return service.geocode(limit, retryFailed);
     }
 
-    // 외부 API 문제는 우리 서버 오류(500)가 아니라 업스트림 오류(502)로 응답
+    // 키 설정이 없으면 이 기능을 쓸 수 없는 상태(503), 외부 API 문제는 업스트림 오류(502)로 응답
     @ExceptionHandler(JusoApiException.class)
     public ProblemDetail handleApiError(JusoApiException e) {
         log.warn("지오코딩 실패: {}", e.getMessage(), e);
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
+        HttpStatus status = e.kind() == JusoApiException.Kind.MISSING_KEY
+                ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.BAD_GATEWAY;
+        return ProblemDetail.forStatusAndDetail(status, e.getMessage());
     }
 }
