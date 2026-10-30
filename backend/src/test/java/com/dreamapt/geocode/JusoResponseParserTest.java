@@ -25,12 +25,11 @@ class JusoResponseParserTest {
                         "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)"));
     }
 
-    // juso-coord-sample.json은 좌표제공 API 키 승인 전이라 손으로 만든 것. 좌표는 WGS84 (127.1078, 37.4966)을
-    // UTM-K로 바꾼 값이다. 키가 나오면 실제 응답으로 바꾼다
+    // juso-coord-sample.json은 실제 응답 (2026-10-30, 헬리오시티 송파대로 345 주출입구)
     @Test
     void 좌표를_파싱한다() throws IOException {
         assertThat(parser.parseCoord(sample("juso-coord-sample.json")))
-                .contains(new UtmkPoint(965331.7703824214, 1944221.3447027379));
+                .contains(new UtmkPoint(965730.2897525667, 1944494.4993890333));
     }
 
     @Test

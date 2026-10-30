@@ -29,13 +29,13 @@ import com.dreamapt.support.TestcontainersConfiguration;
 @Import(TestcontainersConfiguration.class)
 class ComplexGeocodeServiceIntegrationTest {
 
-    // 헬리오시티: 송파구(11710) 가락동(10700). 좌표는 WGS84 (127.1078, 37.4966)을 UTM-K로 바꾼 값
+    // 헬리오시티: 송파구(11710) 가락동(10700). 좌표는 좌표제공 API의 실제 주출입구 좌표(UTM-K)
     private static final String HELIO = "11710-8865";
     private static final String ROAD_KEYWORD = "서울특별시 송파구 송파대로 345";
     private static final String JIBUN_KEYWORD = "서울특별시 송파구 가락동 913";
     private static final JusoAddress GARAK = address("1171010700");
     private static final JusoAddress MUNJEONG = address("1171010800"); // 같은 구의 다른 동
-    private static final UtmkPoint HELIO_POINT = new UtmkPoint(965331.7703824214, 1944221.3447027379);
+    private static final UtmkPoint HELIO_POINT = new UtmkPoint(965730.2897525667, 1944494.4993890333);
 
     @Autowired
     ComplexGeocodeService service;
@@ -62,8 +62,9 @@ class ComplexGeocodeServiceIntegrationTest {
 
         assertThat(result).isEqualTo(new GeocodeResult(1, 1, 0, 0, 0, 0, 0, false, 0));
         Map<String, Object> row = row(HELIO);
-        assertThat((Double) row.get("lng")).isCloseTo(127.1078, within(1e-6));
-        assertThat((Double) row.get("lat")).isCloseTo(37.4966, within(1e-6));
+        // 기대값은 PostGIS ST_Transform 결과 (송파대로 345, 가락동)
+        assertThat((Double) row.get("lng")).isCloseTo(127.1122956, within(1e-6));
+        assertThat((Double) row.get("lat")).isCloseTo(37.4990770, within(1e-6));
         assertThat(row.get("srid")).isEqualTo(4326);
         assertThat(row.get("geocode_attempted_at")).isNotNull();
         assertThat(row.get("geocode_error")).isNull();
