@@ -23,7 +23,8 @@ public class JusoResponseParser {
     private static final String SUCCESS_CODE = "0";
     // E0001: 승인되지 않은 키, E0014: 개발 승인키 기간 만료
     private static final Set<String> AUTH_CODES = Set.of("E0001", "E0014");
-    private static final String SYSTEM_ERROR_CODE = "-999";
+    // -999: 시스템 오류, E0007: 짧은 시간에 요청이 많음(빈도 제한). 단지 문제가 아니므로 일시 오류로 본다 (ADR 010 ④)
+    private static final Set<String> TRANSIENT_CODES = Set.of("-999", "E0007");
 
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
@@ -79,7 +80,7 @@ public class JusoResponseParser {
         if (AUTH_CODES.contains(errorCode)) {
             return Kind.AUTH;
         }
-        if (SYSTEM_ERROR_CODE.equals(errorCode)) {
+        if (TRANSIENT_CODES.contains(errorCode)) {
             return Kind.TRANSIENT;
         }
         return Kind.OTHER;

@@ -58,6 +58,7 @@ class JusoResponseParserTest {
             "E0001, AUTH",      // 승인되지 않은 키
             "E0014, AUTH",      // 개발 승인키 기간 만료
             "-999, TRANSIENT",  // 시스템 오류
+            "E0007, TRANSIENT", // 짧은 시간에 요청이 많음 (빈도 제한)
             "E0006, OTHER",     // 주소를 상세히 입력
             "E0013, OTHER",     // 특수문자·SQL 예약어 포함
     })
