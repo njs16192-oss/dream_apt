@@ -48,7 +48,9 @@ dreamapt:
     base-url: ${JUSO_BASE_URL:https://business.juso.go.kr/addrlink}
     search-api-key: ${JUSO_SEARCH_API_KEY:}
     coord-api-key: ${JUSO_COORD_API_KEY:}
-    request-interval: ${JUSO_REQUEST_INTERVAL:100ms}
+    # 공개된 한도는 없다. 100ms(초당 약 10회)에서 빈도 제한(E0007)이 났고 300ms에서는 나지 않았다 (ADR 010 ⑥).
+    # E0007이 다시 나면 이 값만 올린다
+    request-interval: ${JUSO_REQUEST_INTERVAL:300ms}
   # 새 missing이 최소 건수 이상이고 기존 유효 행 대비 비율이 한도를 넘으면 missing 표시를 보류 (ADR 004)
   collect:
     missing-ratio-limit: ${COLLECT_MISSING_RATIO_LIMIT:0.2}
