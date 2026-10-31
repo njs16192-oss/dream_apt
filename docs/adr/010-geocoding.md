@@ -17,7 +17,8 @@
 | 주소 변경 | 수집 upsert에서 주소(시군구·법정동·지번·도로명)가 바뀌면 `location`과 지오코딩 기록을 지운다 → 다음 실행에서 새 주소로 다시 받는다 |
 | 실행 | 신규 단지: 수집 Job의 지오코딩 step이 실행마다 최대 200개 (`COLLECT_GEOCODE_LIMIT`). 처음 채울 때나 급할 때: 관리 API `POST /api/admin/geocode?limit=&retryFailed=`, 응답의 `remaining`이 0이 될 때까지 나눠 호출. 호출 간격 기본 300ms (`JUSO_REQUEST_INTERVAL`) |
 | 비밀값 | `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY` (API마다 키가 따로 나온다). 테스트·CI는 키 없이 돈다 |
-| 지도 | Leaflet + OSM 타일. 타일 URL은 설정값 (4단계 화면 PR에서 적용). 출처 표시에 OSM과 "주소·좌표: 행정안전부"를 함께 넣는다 |
+| 지도 | Leaflet + OSM 타일. 타일 URL은 설정값 (4단계 화면 PR에서 적용). 출처 표시에 OSM과 "주소·좌표: 행정안전부"를 함께 넣는다. `preferCanvas: true` |
+| 반경 검색 | `GET /api/complexes/nearby`. geography 거리, GIST 인덱스, 반경 100–3000m, 최대 500개 + `totalCount` (⑧) |
 
 ---
 
@@ -106,6 +107,27 @@ curl -X POST "http://localhost:8080/api/admin/geocode?limit=1000"
 키 없이 쓸 수 있어 CI·테스트에 외부 의존이 없다. 카카오맵 SDK는 앱 키와 도메인 등록이 필요하고 전역 스크립트라 테스트가 번거롭다. OSM 타일은 출처 표시가 필수이고 대량 트래픽에는 맞지 않는다. 타일 URL을 설정값으로 두어 필요하면 브이월드 배경지도 등으로 바꾼다.
 
 **출처 표시**: 단지 좌표는 행정안전부 데이터(공공누리 제1유형, 출처표시)다. 지도의 attribution에 OSM과 함께 "주소·좌표: 행정안전부"를 넣는다.
+
+마커가 최대 500개라 Leaflet은 `preferCanvas: true`로 그린다(SVG보다 가볍다). `circleMarker`는 canvas로도 그려진다.
+
+### ⑧ 반경 검색 (2026-10-31)
+
+`GET /api/complexes/nearby?lat=&lng=&radius=1000&limit=300`
+
+| 항목 | 결정 |
+|---|---|
+| 거리 | `geography`(WGS84 타원체, m). `ST_DWithin`으로 거르고 `ST_Distance`로 정렬한다 |
+| 인덱스 | V10 `GIST ((location::geography))`. 쿼리도 같은 식(`location::geography`)이어야 인덱스를 쓴다 |
+| 범위 | 반경 100–3000m(기본 1000), `limit` 1–500(기본 300), 위경도는 한국 범위(33–39, 124–132) |
+| 잘림 | 반경 안 단지가 `limit`보다 많으면 가까운 순으로 `limit`개만 준다. `totalCount`(자르기 전 전체 수)로 화면이 잘림을 알린다 |
+| 정렬 | 거리, 같으면 단지 ID |
+| 항목 | 단지 ID·이름·구·동·준공연도·위경도·거리(m, 반올림)·최근 12개월 거래 수(일괄 제외, 검색과 같은 기준). 가격은 넣지 않는다(지도 화면에서 필요하면 그때) |
+| 제외 | 좌표 없는 단지 |
+
+- **밀도(로컬, 2026-10-31)**: 단지 수는 헬리오시티 기준 500m 13개, 1km 51개, 2km 249개, 3km 389개다. 표본에서 가장 빽빽한 곳은 1km 366개, 3km 974개(강서구)다. 그래서 상한을 두고 `totalCount`로 잘림을 알린다
+- **쿼리 순서**: 안쪽(CTE)에서 반경으로 거르고 거리순으로 `LIMIT`까지 한 뒤, 바깥에서 최근 거래 수(`valid_apt_trade` LATERAL)를 붙인다. `totalCount`는 `LIMIT` 전에 `count(*) OVER ()`로 센다. 그래서 거래 수 집계는 반경 안 전체(최대 974번)가 아니라 최대 `limit`번만 돈다
+- **측정**: 가장 빽빽한 3km·limit 500에서 `EXPLAIN ANALYZE`는 GIST 인덱스 스캔(974행) → WindowAgg → Limit 500 → 거래 수 집계 `loops=500`, 실행 21ms. HTTP 포함 응답은 17–29ms(중앙값), 최대 98KB
+- **검증**: 헬리오시티 중심 1km를 API와 인덱스를 쓰지 않는 psql 쿼리(`ST_DistanceSphere`)로 대조했다. 같은 51개였고 거리 차이는 최대 3m(타원체와 구의 차이)
 
 ## 3. 측정 결과 (2026-10-31, 로컬, 서울 단지 8,591개)
 
