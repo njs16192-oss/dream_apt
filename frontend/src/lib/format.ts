@@ -25,6 +25,12 @@ export function formatArea(squareMeters: number): string {
   return `전용 ${squareMeters}㎡ (${toPyeong(squareMeters).toFixed(1)}평)`
 }
 
+/** 거리(m). 1km 미만은 m, 이상은 소수 첫째 자리 km. 320 → "320m", 1250 → "1.3km", 1000 → "1km" */
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`
+  return `${Number((meters / 1000).toFixed(1))}km`
+}
+
 /** "2026-09-18" → "2026.09.18" */
 export function formatDate(date: string): string {
   return date.replaceAll('-', '.')

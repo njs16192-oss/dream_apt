@@ -24,6 +24,21 @@ export function complexSearchQuery(term: string, sggCd: string | null) {
   })
 }
 
+/** 반경 검색 최대 건수. 반경 안 단지가 더 많으면 가까운 순으로 이만큼만 오고 totalCount로 알 수 있다 */
+export const NEARBY_LIMIT = 300
+
+export function nearbyComplexesQuery(lat: number, lng: number, radius: number) {
+  return queryOptions({
+    queryKey: ['complexes', 'nearby', lat, lng, radius],
+    queryFn: () =>
+      api
+        .GET('/api/complexes/nearby', { params: { query: { lat, lng, radius, limit: NEARBY_LIMIT } } })
+        .then(unwrap),
+    // 지도를 눌러 중심을 바꿀 때마다 새 쿼리가 된다. 목록이 비었다 채워지지 않게 이전 결과를 남긴다 (흐리게 표시)
+    placeholderData: keepPreviousData,
+  })
+}
+
 /** 거래 목록 한 페이지 건수 */
 export const TRADE_PAGE_SIZE = 20
 

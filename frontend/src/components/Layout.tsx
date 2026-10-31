@@ -10,6 +10,11 @@ export function Layout() {
           <Link to="/" className="text-lg font-bold tracking-tight text-slate-900">
             Dream APT
           </Link>
+          <nav aria-label="주요 메뉴" className="ml-auto">
+            <Link to="/map" className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
+              지도
+            </Link>
+          </nav>
         </div>
       </header>
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
