@@ -15,7 +15,7 @@
 | 실패 기록 | `geocode_attempted_at`(마지막 시도 시각), `geocode_error`(NOT_FOUND / MISMATCH / NO_COORD / API_ERROR). 기록된 단지는 다시 호출하지 않는다 (`retryFailed`로만) |
 | 오류 처리 | 키 없음·거부 → 실행 중단(관리 API 503·502), 일시 오류(빈도 제한 `E0007` 포함) → 기록하지 않고 다음 실행에서 다시 (5회 연속이면 멈추고 `stopped=true`), 그 밖 → 그 단지만 API_ERROR |
 | 주소 변경 | 수집 upsert에서 주소(시군구·법정동·지번·도로명)가 바뀌면 `location`과 지오코딩 기록을 지운다 → 다음 실행에서 새 주소로 다시 받는다 |
-| 실행 | 관리 API `POST /api/admin/geocode?limit=&retryFailed=`. 응답의 `remaining`이 0이 될 때까지 나눠 호출한다. 호출 간격 기본 300ms (`JUSO_REQUEST_INTERVAL`) |
+| 실행 | 신규 단지: 수집 Job의 지오코딩 step이 실행마다 최대 200개 (`COLLECT_GEOCODE_LIMIT`). 처음 채울 때나 급할 때: 관리 API `POST /api/admin/geocode?limit=&retryFailed=`, 응답의 `remaining`이 0이 될 때까지 나눠 호출. 호출 간격 기본 300ms (`JUSO_REQUEST_INTERVAL`) |
 | 비밀값 | `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY` (API마다 키가 따로 나온다). 테스트·CI는 키 없이 돈다 |
 | 지도 | Leaflet + OSM 타일. 타일 URL은 설정값 (4단계 화면 PR에서 적용). 출처 표시에 OSM과 "주소·좌표: 행정안전부"를 함께 넣는다 |
 
@@ -90,6 +90,8 @@ curl -X POST "http://localhost:8080/api/admin/geocode?limit=1000"
 ```
 
 쓰기는 단지마다 바로 커밋한다. API를 호출하는 동안 트랜잭션·커넥션을 잡지 않고, 중간에 멈춰도 처리한 단지는 남는다.
+
+**신규 단지는 수집 배치가 채운다 (2026-10-31).** 수집 Job의 마지막 step이 좌표 없는 단지를 최대 200개(`COLLECT_GEOCODE_LIMIT`) 처리한다(`retryFailed=false`). 300ms 간격으로 약 2분이다. backfill처럼 새 단지가 한꺼번에 많이 생기면 배치가 실행마다 200개씩 따라잡고, 급하면 관리 API로 한 번에 채운다. 키가 없거나 지오코딩이 실패해도 수집 결과와 종료 코드는 바뀌지 않는다 (ADR 006 ①·⑥).
 
 **호출 간격 300ms (추정에 따른 값)**: juso는 호출 한도를 공개하지 않는다. 그래서 측정값으로 정했다.
 - 관측 (2026-10-30)

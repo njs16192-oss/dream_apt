@@ -39,6 +39,11 @@ public class ComplexGeocodeService {
     private final JusoApiClient client;
     private final ComplexGeocodeRepository repository;
 
+    /** 검색·좌표 API 키가 모두 있어서 지오코딩을 할 수 있는가. 배치는 false면 건너뛴다 */
+    public boolean ready() {
+        return client.hasKeys();
+    }
+
     public GeocodeResult geocode(int limit, boolean retryFailed) {
         List<GeocodeTarget> targets = repository.findTargets(limit, retryFailed);
         log.info("지오코딩 시작: 대상 {}개 (limit={}, retryFailed={})", targets.size(), limit, retryFailed);

@@ -1,8 +1,13 @@
 package com.dreamapt.collect.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -34,6 +39,9 @@ import com.dreamapt.collect.FetchedTrades;
 import com.dreamapt.collect.TradeApiClient;
 import com.dreamapt.collect.TradeApiException;
 import com.dreamapt.collect.TradeApiException.Kind;
+import com.dreamapt.geocode.ComplexGeocodeService;
+import com.dreamapt.geocode.GeocodeResult;
+import com.dreamapt.geocode.JusoApiException;
 import com.dreamapt.support.TestcontainersConfiguration;
 
 /**
@@ -73,6 +81,10 @@ class CollectTradeJobIntegrationTest {
     @MockitoBean
     TradeApiClient apiClient;
 
+    // 지오코딩 step이 부르는 서비스. 기본은 키가 있고 새 단지 3개를 처리한 결과
+    @MockitoBean
+    ComplexGeocodeService geocodeService;
+
     /** 구×월(예: "11500×202609")별 실패. 없으면 빈 응답으로 성공 */
     private final Map<String, RuntimeException> failures = new HashMap<>();
 
@@ -91,6 +103,60 @@ class CollectTradeJobIntegrationTest {
             }
             return new FetchedTrades(List.of(), 0);
         });
+        given(geocodeService.ready()).willReturn(true);
+        given(geocodeService.geocode(anyInt(), anyBoolean()))
+                .willReturn(new GeocodeResult(3, 2, 1, 0, 0, 0, 0, false, 0));
+    }
+
+    @Test
+    void 수집이_일부_실패하면_지오코딩이_성공해도_종료_코드는_3이다() {
+        failures.put("11500×202609", new TradeApiException("원본 불완전"));
+
+        JobExecution execution = run(CollectMode.DAILY);
+
+        // 마지막 step(지오코딩)은 COMPLETED지만 Job은 수집 step의 결과를 따른다
+        assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(stepExitCode(execution, "geocodeComplexesStep")).isEqualTo(ExitStatus.COMPLETED.getExitCode());
+        assertThat(execution.getExitStatus().getExitCode()).isEqualTo(CollectExitStatus.COMPLETED_WITH_FAILURES);
+        assertThat(CollectJobExitCodes.of(execution)).isEqualTo(3);
+        verify(geocodeService).geocode(200, false);
+    }
+
+    @Test
+    void 수집_뒤_지오코딩은_limit만큼_실패한_단지는_빼고_한_번_돌고_결과를_남긴다() {
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+        verify(geocodeService, times(1)).geocode(200, false);
+        assertThat(summary(execution, "geocodeComplexesStep"))
+                .containsEntry("summary.attempted", 3)
+                .containsEntry("summary.succeeded", 2)
+                .containsEntry("summary.failed", 1)
+                .containsEntry("summary.remaining", 0L);
+    }
+
+    @Test
+    void 지오코딩이_실패해도_수집_결과와_종료_코드는_그대로다() {
+        given(geocodeService.geocode(anyInt(), anyBoolean()))
+                .willThrow(new JusoApiException(JusoApiException.Kind.AUTH, "E0001"));
+
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(execution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.COMPLETED.getExitCode());
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+        assertThat(summary(execution, "geocodeComplexesStep")).containsEntry("summary.error", "E0001");
+    }
+
+    @Test
+    void 키가_없으면_지오코딩을_건너뛴다() {
+        given(geocodeService.ready()).willReturn(false);
+
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+        verify(geocodeService, never()).geocode(anyInt(), anyBoolean());
+        assertThat(summary(execution, "geocodeComplexesStep")).containsEntry("summary.skipped", "no-keys");
     }
 
     @Test
@@ -135,6 +201,8 @@ class CollectTradeJobIntegrationTest {
         assertThat(CollectJobExitCodes.of(execution)).isEqualTo(2);
         assertThat(count("true")).isEqualTo(5);
         assertThat(count("status = 'FAILED'")).isEqualTo(1);
+        // 수집 step이 FAILED면 지오코딩 step까지 가지 않는다
+        verify(geocodeService, never()).geocode(anyInt(), anyBoolean());
     }
 
     @Test
@@ -175,6 +243,7 @@ class CollectTradeJobIntegrationTest {
         assertThat(CollectJobExitCodes.of(execution)).isEqualTo(4);
         assertThat(execution.getStepExecutions()).isEmpty();
         assertThat(count("true")).isZero();
+        verify(geocodeService, never()).geocode(anyInt(), anyBoolean());
     }
 
     @Test
@@ -250,7 +319,21 @@ class CollectTradeJobIntegrationTest {
     }
 
     private Map<String, Object> summary(JobExecution execution) {
-        return execution.getStepExecutions().iterator().next().getExecutionContext().toMap();
+        return summary(execution, CollectBatchConfig.COLLECT_STEP);
+    }
+
+    private Map<String, Object> summary(JobExecution execution, String stepName) {
+        return execution.getStepExecutions().stream()
+                .filter(s -> s.getStepName().equals(stepName))
+                .findFirst().orElseThrow()
+                .getExecutionContext().toMap();
+    }
+
+    private static String stepExitCode(JobExecution execution, String stepName) {
+        return execution.getStepExecutions().stream()
+                .filter(s -> s.getStepName().equals(stepName))
+                .findFirst().orElseThrow()
+                .getExitStatus().getExitCode();
     }
 
     private long count(String where) {

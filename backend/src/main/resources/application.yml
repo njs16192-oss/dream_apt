@@ -68,6 +68,8 @@ dreamapt:
         max-retries: ${COLLECT_RETRY_MAX_RETRIES:3}
         delay: ${COLLECT_RETRY_DELAY:2s}
         multiplier: ${COLLECT_RETRY_MULTIPLIER:2}
+      # 수집 뒤 좌표 없는 신규 단지를 지오코딩하는 최대 단지 수 (ADR 010). 300ms 간격으로 200개면 약 2분. 0이면 끈다
+      geocode-limit: ${COLLECT_GEOCODE_LIMIT:200}
 ---
 # 로컬 개발 프로필. ./gradlew bootRun은 활성 프로필이 없으면 local로 뜬다 (build.gradle의 spring.profiles.default)
 # application-local.yml은 개인 설정용으로 .gitignore에 있어서, 공유할 로컬 설정은 여기에 둔다

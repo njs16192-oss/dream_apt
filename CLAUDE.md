@@ -24,6 +24,7 @@ docs/troubleshooting.md
 - 수집 배치 (docs/adr/006-batch-execution.md): `cd backend && ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`
   - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
   - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
+  - Job은 수집 뒤 좌표 없는 신규 단지를 최대 `COLLECT_GEOCODE_LIMIT`(기본 200, 0이면 끔)개 지오코딩함. 종료 코드는 수집 step 기준
 - 단지 좌표 지오코딩 (docs/adr/010-geocoding.md): 관리 API `POST /api/admin/geocode?limit=1000` (`retryFailed=true`면 실패한 단지도 다시)
   - 행안부 도로명주소 API 키 `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY` 필요
   - 한 번에 다 돌리면 HTTP 타임아웃에 걸릴 수 있어서, 응답의 `remaining`이 0이 될 때까지 나눠 호출
