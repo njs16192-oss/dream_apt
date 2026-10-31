@@ -12,6 +12,7 @@ import com.dreamapt.common.NotFoundException;
 import com.dreamapt.common.PageResponse;
 import com.dreamapt.common.ReportingPeriod;
 import com.dreamapt.complex.ComplexQueryRepository.ComplexRow;
+import com.dreamapt.complex.ComplexQueryRepository.NearbyRows;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,8 +43,15 @@ public class ComplexQueryService {
         int total = tradeCount + bulkCount;
         double bulkRatio = total == 0 ? 0 : (double) bulkCount / total;
         return new ComplexDetail(c.aptSeq(), c.name(), c.sggCd(), c.sggName(), c.umdName(), c.buildYear(),
-                c.roadAddress(), tradeCount, bulkCount, bulkRatio, total > 0 && bulkRatio >= BULK_DOMINANT_RATIO,
-                areaGroups);
+                c.roadAddress(), c.lat(), c.lng(), tradeCount, bulkCount, bulkRatio,
+                total > 0 && bulkRatio >= BULK_DOMINANT_RATIO, areaGroups);
+    }
+
+    /** 반경 안 단지를 가까운 순으로 최대 limit개. 최근 거래 수는 검색과 같은 기준(기준일 전 12개월, 일괄 제외) */
+    public NearbyComplexes nearby(double lat, double lng, int radius, int limit) {
+        ReportingPeriod period = ReportingPeriod.of(clock);
+        NearbyRows rows = repository.findNearby(lat, lng, radius, limit, period.baseDate().minusMonths(RECENT_MONTHS));
+        return new NearbyComplexes(lat, lng, radius, rows.totalCount(), rows.items());
     }
 
     /**

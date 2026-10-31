@@ -31,6 +31,21 @@ public class TradeRows {
                 """, aptSeq, name, sggCd, umdNm, buildYear);
     }
 
+    /** 단지 좌표 (WGS84) */
+    public void location(String aptSeq, double lat, double lng) {
+        jdbc.update("UPDATE apt_complex SET location = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE apt_seq = ?",
+                lng, lat, aptSeq);
+    }
+
+    /** 중심에서 meters만큼, 방위 azimuthDegrees(북=0, 동=90) 방향에 단지 좌표를 둔다. 타원체 거리라 반경 검색과 같은 기준이다 */
+    public void locationFrom(String aptSeq, double centerLat, double centerLng, double meters, double azimuthDegrees) {
+        jdbc.update("""
+                UPDATE apt_complex
+                SET location = ST_Project(ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?, radians(?))::geometry
+                WHERE apt_seq = ?
+                """, centerLng, centerLat, meters, azimuthDegrees, aptSeq);
+    }
+
     /** 기본값: 금액 100,000만원, 84.99㎡, 층은 넣을 때마다 1씩 늘어남, 유효 거래. */
     public Trade trade(String aptSeq, LocalDate dealDate) {
         return new Trade(aptSeq, dealDate);

@@ -21,6 +21,8 @@ import com.dreamapt.common.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -49,6 +51,21 @@ public class ComplexController {
             @Parameter(description = "최대 건수 (1–50)")
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int limit) {
         return service.search(q, sggCd, limit);
+    }
+
+    @Operation(summary = "반경 안의 단지",
+            description = "중심 좌표에서 radius(m) 안에 있는 단지를 가까운 순으로 최대 limit개 준다. "
+                    + "totalCount가 items보다 많으면 잘린 것이다. 좌표는 주출입구 기준이고, 좌표가 없는 단지는 빠진다 (ADR 010). "
+                    + "recentTradeCount: 기준일 전 12개월 유효 거래 수, " + BULK_EXCLUDED)
+    @GetMapping("/nearby")
+    public NearbyComplexes nearby(
+            @Parameter(description = "중심 위도 (WGS84, 33–39)", example = "37.499077")
+            @RequestParam @DecimalMin("33") @DecimalMax("39") double lat,
+            @Parameter(description = "중심 경도 (WGS84, 124–132)", example = "127.112296")
+            @RequestParam @DecimalMin("124") @DecimalMax("132") double lng,
+            @Parameter(description = "반경 (m, 100–3000)") @RequestParam(defaultValue = "1000") @Min(100) @Max(3000) int radius,
+            @Parameter(description = "최대 건수 (1–500)") @RequestParam(defaultValue = "300") @Min(1) @Max(500) int limit) {
+        return service.nearby(lat, lng, radius, limit);
     }
 
     @Operation(summary = "단지 상세",

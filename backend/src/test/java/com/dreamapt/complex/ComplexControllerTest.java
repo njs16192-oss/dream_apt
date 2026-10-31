@@ -84,7 +84,7 @@ class ComplexControllerTest {
     @Test
     void 단지_상세_응답_형식() throws Exception {
         given(service.getDetail("11710-8865")).willReturn(new ComplexDetail("11710-8865", "헬리오시티", "11710", "송파구",
-                "가락동", 2018, "송파대로 345", 1, 10, 10.0 / 11, true, List.of(
+                "가락동", 2018, "송파대로 345", 37.499077, 127.112296, 1, 10, 10.0 / 11, true, List.of(
                         new AreaGroupSummary(39, List.of(new BigDecimal("39.12")), 0, 10, null, null),
                         new AreaGroupSummary(85, List.of(new BigDecimal("84.90"), new BigDecimal("84.99")), 1, 0,
                                 LocalDate.of(2026, 8, 1), 245_000))));
@@ -93,12 +93,60 @@ class ComplexControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(json("""
                         {"aptSeq":"11710-8865","name":"헬리오시티","sggCd":"11710","sggName":"송파구",\
-                        "umdName":"가락동","buildYear":2018,"roadAddress":"송파대로 345","tradeCount":1,\
+                        "umdName":"가락동","buildYear":2018,"roadAddress":"송파대로 345",\
+                        "lat":37.499077,"lng":127.112296,"tradeCount":1,\
                         "bulkCount":10,"bulkRatio":0.9090909090909091,"bulkDominant":true,"areaGroups":[\
                         {"areaGroup":39,"exclusiveAreas":[39.12],"tradeCount":0,"bulkCount":10,\
                         "lastDealDate":null,"lastDealAmount":null},\
                         {"areaGroup":85,"exclusiveAreas":[84.90,84.99],"tradeCount":1,"bulkCount":0,\
                         "lastDealDate":"2026-08-01","lastDealAmount":245000}]}"""));
+    }
+
+    @Test
+    void 반경_검색_응답_형식과_기본값() throws Exception {
+        given(service.nearby(37.499077, 127.112296, 1000, 300)).willReturn(new NearbyComplexes(37.499077, 127.112296,
+                1000, 51, List.of(new NearbyComplex("11710-8865", "헬리오시티", "송파구", "가락동", 2018, 37.499077,
+                        127.112296, 0, 152))));
+
+        mockMvc.perform(get("/api/complexes/nearby").param("lat", "37.499077").param("lng", "127.112296"))
+                .andExpect(status().isOk())
+                .andExpect(json("""
+                        {"lat":37.499077,"lng":127.112296,"radius":1000,"totalCount":51,"items":[\
+                        {"aptSeq":"11710-8865","name":"헬리오시티","sggName":"송파구","umdName":"가락동",\
+                        "buildYear":2018,"lat":37.499077,"lng":127.112296,"distanceM":0,"recentTradeCount":152}]}"""));
+        // "/nearby"가 단지 상세(/{aptSeq})로 잡히지 않는다
+        verify(service, never()).getDetail(any());
+    }
+
+    @Test
+    void 반경_검색은_반경과_개수를_받는다() throws Exception {
+        given(service.nearby(37.5, 127.0, 3000, 500)).willReturn(new NearbyComplexes(37.5, 127.0, 3000, 0, List.of()));
+
+        mockMvc.perform(get("/api/complexes/nearby").param("lat", "37.5").param("lng", "127.0")
+                .param("radius", "3000").param("limit", "500"))
+                .andExpect(status().isOk());
+
+        verify(service).nearby(37.5, 127.0, 3000, 500);
+    }
+
+    @Test
+    void 반경_검색_파라미터가_잘못되면_ProblemDetail_400() throws Exception {
+        for (String[] params : new String[][] {
+                { "lng", "127" }, { "lat", "37.5" },
+                { "lat", "32.9", "lng", "127" }, { "lat", "39.1", "lng", "127" },
+                { "lat", "37.5", "lng", "123.9" }, { "lat", "37.5", "lng", "132.1" },
+                { "lat", "37.5", "lng", "127", "radius", "99" }, { "lat", "37.5", "lng", "127", "radius", "3001" },
+                { "lat", "37.5", "lng", "127", "limit", "0" }, { "lat", "37.5", "lng", "127", "limit", "501" },
+                { "lat", "abc", "lng", "127" } }) {
+            var request = get("/api/complexes/nearby");
+            for (int i = 0; i < params.length; i += 2) {
+                request.param(params[i], params[i + 1]);
+            }
+            mockMvc.perform(request)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType("application/problem+json"));
+        }
+        verifyNoInteractions(service);
     }
 
     @Test

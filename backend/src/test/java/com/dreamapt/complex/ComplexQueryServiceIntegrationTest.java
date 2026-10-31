@@ -230,6 +230,97 @@ class ComplexQueryServiceIntegrationTest {
         void 없는_단지면_찾을_수_없다() {
             assertThatThrownBy(() -> service.getDetail("99999-1")).isInstanceOf(NotFoundException.class);
         }
+
+        @Test
+        void 좌표가_있으면_위도_경도를_주고_없으면_null이다() {
+            assertThat(service.getDetail(HELIO)).extracting(ComplexDetail::lat, ComplexDetail::lng)
+                    .containsExactly(null, null);
+
+            rows.location(HELIO, CENTER_LAT, CENTER_LNG);
+
+            assertThat(service.getDetail(HELIO)).extracting(ComplexDetail::lat, ComplexDetail::lng)
+                    .containsExactly(CENTER_LAT, CENTER_LNG);
+        }
+    }
+
+    /** 반경 검색 중심 (헬리오시티 주출입구 근처) */
+    private static final double CENTER_LAT = 37.499077;
+    private static final double CENTER_LNG = 127.112296;
+
+    @Nested
+    class 반경_검색 {
+
+        @BeforeEach
+        void setUp() {
+            // HELIO는 중심. 거리는 ST_Project로 정확히 둔다. 반경 1000m 경계는 990m·1010m로 여유를 둔다
+            rows.location(HELIO, CENTER_LAT, CENTER_LNG);
+            complexAt("11710-2", 500, 90);
+            complexAt("11710-3", 990, 0);
+            complexAt("11710-4", 1010, 180);
+            rows.complex("11710-5", "좌표없음", "11710"); // 좌표 없는 단지는 빠진다
+        }
+
+        @Test
+        void 반경_안_단지를_가까운_순으로_거리와_함께_준다() {
+            NearbyComplexes result = service.nearby(CENTER_LAT, CENTER_LNG, 1000, 300);
+
+            assertThat(result.items()).extracting(NearbyComplex::aptSeq, NearbyComplex::distanceM)
+                    .containsExactly(tuple(HELIO, 0), tuple("11710-2", 500), tuple("11710-3", 990));
+            assertThat(result.totalCount()).isEqualTo(3);
+            assertThat(result).extracting(NearbyComplexes::lat, NearbyComplexes::lng, NearbyComplexes::radius)
+                    .containsExactly(CENTER_LAT, CENTER_LNG, 1000);
+            assertThat(result.items().get(0)).extracting(NearbyComplex::name, NearbyComplex::sggName,
+                    NearbyComplex::lat, NearbyComplex::lng)
+                    .containsExactly("헬리오시티", "송파구", CENTER_LAT, CENTER_LNG);
+        }
+
+        @Test
+        void 반경을_넓히면_경계_밖_단지도_들어온다() {
+            assertThat(service.nearby(CENTER_LAT, CENTER_LNG, 1100, 300).items())
+                    .extracting(NearbyComplex::aptSeq).contains("11710-4");
+        }
+
+        @Test
+        void limit으로_자르고_totalCount는_자르기_전_전체_수다() {
+            NearbyComplexes result = service.nearby(CENTER_LAT, CENTER_LNG, 1000, 2);
+
+            assertThat(result.items()).extracting(NearbyComplex::aptSeq).containsExactly(HELIO, "11710-2");
+            assertThat(result.totalCount()).isEqualTo(3);
+        }
+
+        @Test
+        void 같은_거리면_단지_ID_순이다() {
+            complexAt("11710-7", 300, 270);
+            complexAt("11710-6", 300, 0);
+
+            assertThat(service.nearby(CENTER_LAT, CENTER_LNG, 400, 300).items())
+                    .extracting(NearbyComplex::aptSeq).containsExactly(HELIO, "11710-6", "11710-7");
+        }
+
+        @Test
+        void 최근_거래_수는_기준일_전_12개월의_일반_거래만_센다() {
+            rows.trade(HELIO, LocalDate.of(2026, 9, 1)).insert();
+            rows.trade(HELIO, LocalDate.of(2025, 11, 1)).insert();
+            rows.trade(HELIO, LocalDate.of(2025, 10, 1)).insert(); // 12개월 전보다 이르다
+            rows.trades(HELIO, LocalDate.of(2026, 8, 5), 10, 50_000); // 일괄 거래
+            rows.trade(HELIO, LocalDate.of(2026, 8, 6)).cancelled().insert();
+
+            assertThat(service.nearby(CENTER_LAT, CENTER_LNG, 100, 300).items()).singleElement()
+                    .extracting(NearbyComplex::recentTradeCount).isEqualTo(2);
+        }
+
+        @Test
+        void 반경_안에_단지가_없으면_빈_목록과_0이다() {
+            NearbyComplexes result = service.nearby(37.6, 126.9, 1000, 300);
+
+            assertThat(result.items()).isEmpty();
+            assertThat(result.totalCount()).isZero();
+        }
+
+        private void complexAt(String aptSeq, double meters, double azimuth) {
+            rows.complex(aptSeq, "단지" + aptSeq, "11710");
+            rows.locationFrom(aptSeq, CENTER_LAT, CENTER_LNG, meters, azimuth);
+        }
     }
 
     @Nested
