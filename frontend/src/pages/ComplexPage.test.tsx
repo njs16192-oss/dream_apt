@@ -32,6 +32,8 @@ function complex(overrides: Partial<Schemas['ComplexDetail']> = {}): Schemas['Co
     umdName: '가락동',
     buildYear: 2018,
     roadAddress: '송파대로 345',
+    lat: 37.499077,
+    lng: 127.112296,
     tradeCount: 1352,
     bulkCount: 0,
     bulkRatio: 0,
