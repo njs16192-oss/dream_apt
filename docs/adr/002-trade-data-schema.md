@@ -37,6 +37,9 @@ API 응답은 거래 1건마다 단지 정보(단지명, 주소, 건축년도 �
 | `jibun`, `roadNm` + `roadNmBonbun` + `roadNmBubun` | `jibun`, `road_address` | 4단계 지오코딩에 사용 |
 | `buildYear` | `build_year` | |
 | (없음) | `location` | 4단계에서 좌표 변환 후 채움 |
+| (`dealYear`·`dealMonth`·`dealDay`) | `source_deal_date` | 위 단지 정보를 가져온 거래의 계약일. 더 늦은 거래만 단지 정보를 갱신한다 (2026-10-31, [ADR 003](003-upsert-with-jdbc-template.md)) |
+
+같은 `aptSeq`라도 거래마다 단지명·주소가 다르게 올 수 있다(주소 변경, 같은 달 안의 다른 표기). 단지 정보는 **계약일이 가장 늦은 거래**의 값을 쓴다.
 
 **거래 (`apt_trade`)**
 
