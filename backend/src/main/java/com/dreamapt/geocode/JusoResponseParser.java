@@ -32,7 +32,8 @@ public class JusoResponseParser {
         List<JusoAddress> addresses = new ArrayList<>();
         for (JsonNode juso : jusoList(json)) {
             addresses.add(new JusoAddress(text(juso, "admCd"), text(juso, "rnMgtSn"), text(juso, "udrtYn"),
-                    text(juso, "buldMnnm"), text(juso, "buldSlno"), text(juso, "roadAddr")));
+                    text(juso, "buldMnnm"), text(juso, "buldSlno"), text(juso, "roadAddr"), text(juso, "rn"),
+                    text(juso, "mtYn"), text(juso, "lnbrMnnm"), text(juso, "lnbrSlno")));
         }
         return addresses;
     }

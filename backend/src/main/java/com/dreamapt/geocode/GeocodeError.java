@@ -4,7 +4,7 @@ package com.dreamapt.geocode;
 public enum GeocodeError {
     /** 도로명·지번 검색 모두 결과가 없다 */
     NOT_FOUND,
-    /** 결과는 있지만 법정동이 단지와 다르다. 다른 동의 같은 주소를 고르지 않으려고 버린다 */
+    /** 결과는 있지만 단지 주소와 다르다 (법정동, 또는 건물번호·번지). 다른 건물을 고르지 않으려고 버린다 */
     MISMATCH,
     /** 건물은 찾았지만 좌표제공 API에 좌표가 없다 */
     NO_COORD,

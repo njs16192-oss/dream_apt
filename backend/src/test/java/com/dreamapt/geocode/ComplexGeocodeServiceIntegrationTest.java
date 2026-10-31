@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -237,9 +238,68 @@ class ComplexGeocodeServiceIntegrationTest {
         GeocodeTarget target = new GeocodeTarget(HELIO, "11710", "10700", "서울특별시", "송파구", "가락동", "913",
                 "송파대로 345");
 
-        assertThat(ComplexGeocodeService.keywords(target)).containsExactly(ROAD_KEYWORD, JIBUN_KEYWORD);
-        assertThat(ComplexGeocodeService.keywords(new GeocodeTarget(HELIO, "11710", "10700", "서울특별시", "송파구",
-                "가락동", "913", null))).containsExactly(JIBUN_KEYWORD);
+        assertThat(keywords(target)).containsExactly(ROAD_KEYWORD, JIBUN_KEYWORD);
+        assertThat(keywords(target("913", null))).containsExactly(JIBUN_KEYWORD);
+    }
+
+    @Test
+    void 도로명_결과의_건물번호가_다르면_쓰지_않고_지번으로_찾는다() {
+        JusoAddress neighbor = address("1171010700", "송파대로", "347", "0", "914", "0"); // 같은 동, 옆 건물
+        given(client.search(ROAD_KEYWORD)).willReturn(List.of(neighbor));
+        given(client.search(JIBUN_KEYWORD)).willReturn(List.of(GARAK));
+        given(client.coord(GARAK)).willReturn(Optional.of(HELIO_POINT));
+
+        assertThat(service.geocode(10, false).succeeded()).isEqualTo(1);
+        verify(client, never()).coord(neighbor);
+    }
+
+    @Test
+    void 지번_결과의_번지가_다르면_MISMATCH() {
+        // 실제 사례: "공릉동 270-71"을 검색하면 270-47 건물이 나온다
+        jdbc.update("UPDATE apt_complex SET road_address = NULL WHERE apt_seq = ?", HELIO);
+        given(client.search(JIBUN_KEYWORD)).willReturn(List.of(address("1171010700", "송파대로", "345", "0", "914", "0")));
+
+        assertThat(service.geocode(10, false).mismatch()).isEqualTo(1);
+        assertThat(row(HELIO)).containsEntry("geocode_error", "MISMATCH");
+        verify(client, never()).coord(any());
+    }
+
+    @Test
+    void 번호_비교는_부번과_산_여부까지_본다() {
+        Predicate<JusoAddress> road = queries(target("913", "송파대로 345-2")).get(0).sameAddress();
+        assertThat(road.test(withBuilding("345", "2"))).isTrue();
+        assertThat(road.test(withBuilding("345", "0"))).isFalse();
+        assertThat(road.test(withBuilding("3452", "0"))).isFalse();
+        assertThat(road.test(address("1171010700", "송파대로길", "345", "0", "913", "0"))).isFalse();
+
+        Predicate<JusoAddress> mountain = queries(target("산11-244", null)).get(0).sameAddress();
+        assertThat(mountain.test(address("1171010700", "통일로", "555", "1", "11", "244"))).isTrue();
+        assertThat(mountain.test(address("1171010700", "통일로", "555", "0", "11", "244"))).isFalse();
+        assertThat(mountain.test(address("1171010700", "통일로", "555", "1", "11", "0"))).isFalse();
+    }
+
+    @Test
+    void 숫자_번지가_아니면_지번으로_검색하지_않고_NOT_FOUND() {
+        jdbc.update("UPDATE apt_complex SET road_address = NULL, jibun = 'BL-3-1' WHERE apt_seq = ?", HELIO);
+
+        assertThat(service.geocode(10, false).notFound()).isEqualTo(1);
+        verify(client, never()).search(anyString());
+    }
+
+    private static List<String> keywords(GeocodeTarget target) {
+        return ComplexGeocodeService.queries(target).stream().map(ComplexGeocodeService.SearchQuery::keyword).toList();
+    }
+
+    private static List<ComplexGeocodeService.SearchQuery> queries(GeocodeTarget target) {
+        return ComplexGeocodeService.queries(target);
+    }
+
+    private static GeocodeTarget target(String jibun, String roadAddress) {
+        return new GeocodeTarget(HELIO, "11710", "10700", "서울특별시", "송파구", "가락동", jibun, roadAddress);
+    }
+
+    private static JusoAddress withBuilding(String buldMnnm, String buldSlno) {
+        return new JusoAddress("1171010700", "117102005011", "0", buldMnnm, buldSlno, "", "송파대로", "0", "913", "0");
     }
 
     private void complex(String aptSeq, String umdCd, String umdNm, String jibun, String roadAddress) {
@@ -257,7 +317,14 @@ class ComplexGeocodeServiceIntegrationTest {
                 """, aptSeq);
     }
 
+    /** 송파대로 345 / 913번지 건물. admCd만 바꿔 다른 동 결과를 만든다 */
     private static JusoAddress address(String admCd) {
-        return new JusoAddress(admCd, "117102005011", "0", "345", "0", "서울특별시 송파구 송파대로 345");
+        return address(admCd, "송파대로", "345", "0", "913", "0");
+    }
+
+    private static JusoAddress address(String admCd, String rn, String buldMnnm, String mtYn, String lnbrMnnm,
+            String lnbrSlno) {
+        return new JusoAddress(admCd, "117102005011", "0", buldMnnm, "0", "서울특별시 송파구 " + rn + " " + buldMnnm,
+                rn, mtYn, lnbrMnnm, lnbrSlno);
     }
 }

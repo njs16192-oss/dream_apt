@@ -60,7 +60,7 @@ class JusoApiClientTest {
     }
 
     private static final JusoAddress HELIO = new JusoAddress("1171010700", "117102005011", "0", "345", "0",
-            "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)");
+            "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)", "송파대로", "0", "913", "0");
 
     private static JusoApiClient client(String searchKey, String coordKey) {
         // 실제 호출이 일어나도 바로 연결 실패하도록 닿지 않는 주소를 쓴다

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
@@ -15,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  * 좌표 없는 단지를 도로명주소 API로 지오코딩한다 (ADR 010).
  * <ol>
  * <li>도로명주소로 검색하고, 결과가 없거나 법정동이 다르면 지번으로 다시 검색한다</li>
- * <li>결과의 법정동코드(admCd)가 단지의 sgg_cd + umd_cd와 같은 첫 건만 쓴다</li>
+ * <li>결과의 법정동코드(admCd)가 단지의 sgg_cd + umd_cd와 같고, 건물번호(도로명) 또는 번지(지번)까지 같은 첫 건만 쓴다</li>
  * <li>그 건물의 주출입구 좌표(UTM-K)를 받아 WGS84로 바꿔 저장한다</li>
  * </ol>
  * 실패 사유는 기록해서 다시 호출하지 않는다. 일시 오류는 기록하지 않고 다음 실행에 맡기되 연속되면 멈추고,
@@ -30,7 +32,9 @@ public class ComplexGeocodeService {
     // 일시 오류가 이만큼 연속되면 서버 장애로 보고 실행을 멈춘다 (ADR 010 ④)
     static final int MAX_CONSECUTIVE_TRANSIENT = 5;
     // "송파대로 345", "통일로 555-1"처럼 건물번호가 있어야 도로명으로 찾을 수 있다 ("만리재로"만 있는 단지가 있다)
-    private static final Pattern ROAD_WITH_NUMBER = Pattern.compile("^\\S+ \\d+(-\\d+)?$");
+    private static final Pattern ROAD_WITH_NUMBER = Pattern.compile("^(\\S+) (\\d+)(?:-(\\d+))?$");
+    // "913", "176-1", "산11-244"
+    private static final Pattern JIBUN_NUMBER = Pattern.compile("^(산)?(\\d+)(?:-(\\d+))?$");
 
     private final JusoApiClient client;
     private final ComplexGeocodeRepository repository;
@@ -82,10 +86,13 @@ public class ComplexGeocodeService {
     private Optional<GeocodeError> geocodeOne(GeocodeTarget target) {
         boolean anyResult = false;
         Optional<JusoAddress> matched = Optional.empty();
-        for (String keyword : keywords(target)) {
-            List<JusoAddress> results = client.search(keyword);
+        for (SearchQuery query : queries(target)) {
+            List<JusoAddress> results = client.search(query.keyword());
             anyResult |= !results.isEmpty();
-            matched = results.stream().filter(a -> target.expectedAdmCd().equals(a.admCd())).findFirst();
+            matched = results.stream()
+                    .filter(a -> target.expectedAdmCd().equals(a.admCd()))
+                    .filter(query.sameAddress())
+                    .findFirst();
             if (matched.isPresent()) {
                 break;
             }
@@ -105,16 +112,56 @@ public class ComplexGeocodeService {
         return Optional.empty();
     }
 
+    /**
+     * 검색어와, 결과가 단지 주소와 같은 건물인지 보는 조건.
+     * juso 검색은 키워드 검색이라 정확히 일치하지 않아도 같은 동의 비슷한 주소를 돌려준다
+     * (예: "공릉동 270-71" → 270-47). 그래서 법정동코드에 더해 번호까지 같아야 쓴다 (ADR 010 ③)
+     */
+    record SearchQuery(String keyword, Predicate<JusoAddress> sameAddress) {
+    }
+
     /** 도로명주소 → 지번 순서. 시도·시군구를 붙여 다른 지역의 같은 주소를 줄인다 */
-    static List<String> keywords(GeocodeTarget target) {
-        List<String> keywords = new ArrayList<>(2);
-        if (target.roadAddress() != null && ROAD_WITH_NUMBER.matcher(target.roadAddress()).matches()) {
-            keywords.add(join(target.sidoNm(), target.sggNm(), target.roadAddress()));
+    static List<SearchQuery> queries(GeocodeTarget target) {
+        List<SearchQuery> queries = new ArrayList<>(2);
+        Matcher road = matcher(ROAD_WITH_NUMBER, target.roadAddress());
+        if (road != null) {
+            String roadName = road.group(1);
+            int main = Integer.parseInt(road.group(2));
+            int sub = road.group(3) == null ? 0 : Integer.parseInt(road.group(3));
+            queries.add(new SearchQuery(join(target.sidoNm(), target.sggNm(), target.roadAddress()),
+                    a -> roadName.equals(a.rn()) && sameNumber(a.buldMnnm(), main) && sameNumber(a.buldSlno(), sub)));
         }
-        if (target.jibun() != null && target.umdNm() != null) {
-            keywords.add(join(target.sidoNm(), target.sggNm(), target.umdNm(), target.jibun()));
+        // "BL-3-1", "가-238"처럼 숫자 번지가 아니면 번호를 맞춰 볼 수 없으므로 검색하지 않는다
+        Matcher jibun = target.umdNm() == null ? null : matcher(JIBUN_NUMBER, target.jibun());
+        if (jibun != null) {
+            boolean mountain = jibun.group(1) != null;
+            int main = Integer.parseInt(jibun.group(2));
+            int sub = jibun.group(3) == null ? 0 : Integer.parseInt(jibun.group(3));
+            queries.add(new SearchQuery(join(target.sidoNm(), target.sggNm(), target.umdNm(), target.jibun()),
+                    a -> "1".equals(a.mtYn()) == mountain
+                            && sameNumber(a.lnbrMnnm(), main) && sameNumber(a.lnbrSlno(), sub)));
         }
-        return keywords;
+        return queries;
+    }
+
+    private static Matcher matcher(Pattern pattern, String value) {
+        if (value == null) {
+            return null;
+        }
+        Matcher m = pattern.matcher(value.trim());
+        return m.matches() ? m : null;
+    }
+
+    /** juso는 번호를 "345", 부번이 없으면 "0"으로 준다 */
+    private static boolean sameNumber(String value, int expected) {
+        if (value == null) {
+            return expected == 0;
+        }
+        try {
+            return Integer.parseInt(value.trim()) == expected;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private static String join(String... parts) {

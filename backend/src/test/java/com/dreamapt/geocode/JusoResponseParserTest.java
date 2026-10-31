@@ -22,7 +22,7 @@ class JusoResponseParserTest {
     void 검색_결과를_파싱한다() throws IOException {
         assertThat(parser.parseSearch(sample("juso-search-sample.json"))).containsExactly(
                 new JusoAddress("1171010700", "117102005011", "0", "345", "0",
-                        "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)"));
+                        "서울특별시 송파구 송파대로 345 (가락동, 헬리오시티)", "송파대로", "0", "913", "0"));
     }
 
     // juso-coord-sample.json은 실제 응답 (2026-10-30, 헬리오시티 송파대로 345 주출입구)
