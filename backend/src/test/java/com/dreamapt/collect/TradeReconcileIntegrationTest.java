@@ -116,22 +116,99 @@ class TradeReconcileIntegrationTest {
         assertThat(after.get("cancelled")).isEqualTo(false);
     }
 
+    // 단지 정보 갱신 규칙 (ADR 003): 더 늦은 계약일의 거래만 단지 정보를 덮는다.
+    // 원본 거래(sample[0])의 계약일은 2026-09-20이고, save()는 2026-09 한 달을 대조하므로 날짜는 그 달 안에서 바꾼다
+    private static final LocalDate EARLIER = LocalDate.of(2026, 9, 5);
+    private static final LocalDate LATER = LocalDate.of(2026, 9, 25);
+
     @Test
-    void 단지_정보가_바뀌면_갱신된다() {
+    void 더_늦은_거래의_단지_정보로_갱신된다() {
         TradeRecord original = sample.get(0);
         save(List.of(original));
 
-        TradeRecord renamed = new TradeRecord(original.aptSeq(), "가양2단지성지아파트", original.sggCd(),
-                original.umdCd(), original.umdNm(), original.jibun(), original.roadAddress(),
-                original.buildYear(), original.dealDate(), original.dealAmount(), original.excluUseAr(),
-                original.floor(), original.aptDong(), original.buyerGbn(), original.sellerGbn(),
-                original.dealingGbn(), original.agentSggNm(), original.cancelled(), original.cancelDate(),
-                original.registeredDate());
-        save(List.of(renamed));
+        save(List.of(complexInfo(original, "가양2단지성지아파트", "999-9", "새도로명 1", (short) 2001, LATER)));
 
-        assertThat(jdbc.queryForObject("SELECT name FROM apt_complex WHERE apt_seq = ?", String.class,
-                original.aptSeq())).isEqualTo("가양2단지성지아파트");
+        assertThat(complexRow(original.aptSeq()))
+                .containsEntry("name", "가양2단지성지아파트")
+                .containsEntry("jibun", "999-9")
+                .containsEntry("road_address", "새도로명 1")
+                .containsEntry("build_year", 2001) // SMALLINT는 Integer로 읽힌다
+                .containsEntry("source_deal_date", java.sql.Date.valueOf(LATER));
         assertThat(count("apt_complex")).isEqualTo(1);
+    }
+
+    @Test
+    void 더_이른_거래는_단지_정보를_덮지_않는다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+        Map<String, Object> before = complexRow(original.aptSeq());
+
+        // backfill은 최신 → 과거 순으로 처리하므로 옛 주소가 나중에 들어온다
+        save(List.of(complexInfo(original, "옛이름", "1-1", "옛도로명 1", (short) 1980, EARLIER)));
+
+        assertThat(complexRow(original.aptSeq())).isEqualTo(before)
+                .containsEntry("source_deal_date", java.sql.Date.valueOf(original.dealDate()));
+    }
+
+    @Test
+    void 같은_계약일이면_기존_값을_유지한다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+        Map<String, Object> before = complexRow(original.aptSeq());
+
+        save(List.of(complexInfo(original, "다른표기", original.jibun(), original.roadAddress(), original.buildYear(),
+                original.dealDate())));
+
+        assertThat(complexRow(original.aptSeq())).isEqualTo(before);
+    }
+
+    @Test
+    void 기준_날짜가_없으면_어떤_거래든_덮고_날짜를_채운다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+        // V9 이전에 저장된 행
+        jdbc.update("UPDATE apt_complex SET source_deal_date = NULL WHERE apt_seq = ?", original.aptSeq());
+
+        save(List.of(complexInfo(original, "옛이름", "1-1", "옛도로명 1", (short) 1980, EARLIER)));
+
+        assertThat(complexRow(original.aptSeq()))
+                .containsEntry("name", "옛이름")
+                .containsEntry("source_deal_date", java.sql.Date.valueOf(EARLIER));
+    }
+
+    @Test
+    void 한_응답_안에서는_순서와_관계없이_가장_늦은_거래의_단지_정보를_쓴다() {
+        TradeRecord original = sample.get(0);
+        TradeRecord early = complexInfo(original, "이른거래", original.jibun(), "도로명 1", original.buildYear(), EARLIER);
+        TradeRecord late = complexInfo(original, "늦은거래", original.jibun(), "도로명 2", original.buildYear(), LATER);
+
+        save(List.of(late, early));
+        assertThat(complexRow(original.aptSeq())).containsEntry("name", "늦은거래");
+
+        jdbc.update("DELETE FROM apt_trade");
+        jdbc.update("DELETE FROM apt_complex");
+        save(List.of(early, late));
+        assertThat(complexRow(original.aptSeq())).containsEntry("name", "늦은거래");
+    }
+
+    @Test
+    void 값이_같아도_기준_날짜는_앞당겨서_그보다_이른_거래가_덮지_못하게_한다() {
+        TradeRecord original = sample.get(0);
+        TradeRecord a = complexInfo(original, "A", original.jibun(), original.roadAddress(), original.buildYear(),
+                EARLIER);
+        save(List.of(a));
+        Object updatedAt = complexRow(original.aptSeq()).get("updated_at");
+
+        // 9-25에도 같은 A: 단지 정보는 그대로지만 기준 날짜는 9-25가 되고, 값이 바뀌지 않았으니 updated_at은 그대로다
+        save(List.of(complexInfo(original, "A", original.jibun(), original.roadAddress(), original.buildYear(), LATER)));
+        assertThat(complexRow(original.aptSeq()))
+                .containsEntry("source_deal_date", java.sql.Date.valueOf(LATER))
+                .containsEntry("updated_at", updatedAt);
+
+        // 그 사이 날짜(9-20)의 B는 덮지 못한다. 기준 날짜를 앞당기지 않았다면 9-05보다 늦어서 덮었을 것이다
+        save(List.of(complexInfo(original, "B", original.jibun(), original.roadAddress(), original.buildYear(),
+                original.dealDate())));
+        assertThat(complexRow(original.aptSeq())).containsEntry("name", "A");
     }
 
     @Test
@@ -140,7 +217,8 @@ class TradeReconcileIntegrationTest {
         save(List.of(original));
         markGeocoded(original.aptSeq());
 
-        save(List.of(withAddress(original, "가양2단지성지아파트", original.jibun(), original.roadAddress())));
+        save(List.of(complexInfo(original, "가양2단지성지아파트", original.jibun(), original.roadAddress(),
+                original.buildYear(), LATER)));
 
         Map<String, Object> row = geocodeColumns(original.aptSeq());
         assertThat(row.get("has_location")).isEqualTo(true);
@@ -154,15 +232,35 @@ class TradeReconcileIntegrationTest {
         save(List.of(original));
 
         markGeocoded(original.aptSeq());
-        save(List.of(withAddress(original, original.aptNm(), "999-9", original.roadAddress())));
+        save(List.of(complexInfo(original, original.aptNm(), "999-9", original.roadAddress(), original.buildYear(),
+                LocalDate.of(2026, 9, 21))));
         assertThat(geocodeColumns(original.aptSeq()))
                 .containsEntry("has_location", false)
                 .containsEntry("geocode_attempted_at", null)
                 .containsEntry("geocode_error", null);
 
         markGeocoded(original.aptSeq());
-        save(List.of(withAddress(original, original.aptNm(), "999-9", "새도로명 1")));
+        save(List.of(complexInfo(original, original.aptNm(), "999-9", "새도로명 1", original.buildYear(),
+                LocalDate.of(2026, 9, 22))));
         assertThat(geocodeColumns(original.aptSeq())).containsEntry("has_location", false);
+    }
+
+    @Test
+    void 더_이른_거래의_다른_주소는_좌표를_지우지_않는다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+        markGeocoded(original.aptSeq());
+
+        save(List.of(complexInfo(original, original.aptNm(), "1-1", "옛도로명 1", original.buildYear(), EARLIER)));
+
+        assertThat(geocodeColumns(original.aptSeq())).containsEntry("has_location", true);
+    }
+
+    private Map<String, Object> complexRow(String aptSeq) {
+        return jdbc.queryForMap("""
+                SELECT name, sgg_cd, umd_cd, umd_nm, jibun, road_address, build_year, source_deal_date, updated_at
+                FROM apt_complex WHERE apt_seq = ?
+                """, aptSeq);
     }
 
     // 실제로는 성공하면 geocode_error가 NULL이지만, 세 컬럼이 각각 유지·삭제되는지 보려고 모두 채운다
@@ -181,9 +279,11 @@ class TradeReconcileIntegrationTest {
                 """, aptSeq);
     }
 
-    private static TradeRecord withAddress(TradeRecord r, String aptNm, String jibun, String roadAddress) {
+    /** 단지 정보와 계약일만 바꾼 거래. 계약일이 다르면 다른 거래로 저장된다 */
+    private static TradeRecord complexInfo(TradeRecord r, String aptNm, String jibun, String roadAddress,
+            Short buildYear, LocalDate dealDate) {
         return new TradeRecord(r.aptSeq(), aptNm, r.sggCd(), r.umdCd(), r.umdNm(), jibun, roadAddress,
-                r.buildYear(), r.dealDate(), r.dealAmount(), r.excluUseAr(), r.floor(), r.aptDong(), r.buyerGbn(),
+                buildYear, dealDate, r.dealAmount(), r.excluUseAr(), r.floor(), r.aptDong(), r.buyerGbn(),
                 r.sellerGbn(), r.dealingGbn(), r.agentSggNm(), r.cancelled(), r.cancelDate(), r.registeredDate());
     }
 
