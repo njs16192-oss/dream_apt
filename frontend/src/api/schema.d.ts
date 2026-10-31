@@ -140,6 +140,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/complexes/nearby": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 반경 안의 단지
+         * @description 중심 좌표에서 radius(m) 안에 있는 단지를 가까운 순으로 최대 limit개 준다. totalCount가 items보다 많으면 잘린 것이다. 좌표는 주출입구 기준이고, 좌표가 없는 단지는 빠진다 (ADR 010). recentTradeCount: 기준일 전 12개월 유효 거래 수, 일괄 거래 제외.
+         */
+        get: operations["nearby"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -331,6 +351,18 @@ export interface components {
             /** @description 도로명 주소 */
             roadAddress: string | null;
             /**
+             * Format: double
+             * @description 위도 (WGS84, 주출입구). 좌표가 없으면 null (ADR 010)
+             * @example 37.499077
+             */
+            lat: number | null;
+            /**
+             * Format: double
+             * @description 경도 (WGS84, 주출입구). 좌표가 없으면 null
+             * @example 127.112296
+             */
+            lng: number | null;
+            /**
              * Format: int32
              * @description 유효 거래 수. 일괄 거래 제외.
              * @example 1352
@@ -485,6 +517,88 @@ export interface components {
             to: string;
             /** @description 월 오름차순 */
             months: components["schemas"]["MonthlyPrice"][];
+        };
+        /** @description 반경 안의 단지 */
+        NearbyComplex: {
+            /**
+             * @description 단지 ID
+             * @example 11710-8865
+             */
+            aptSeq: string;
+            /**
+             * @description 단지명
+             * @example 헬리오시티
+             */
+            name: string;
+            /**
+             * @description 시군구 이름
+             * @example 송파구
+             */
+            sggName: string;
+            /**
+             * @description 법정동 이름
+             * @example 가락동
+             */
+            umdName: string | null;
+            /**
+             * Format: int32
+             * @description 준공연도
+             * @example 2018
+             */
+            buildYear: number | null;
+            /**
+             * Format: double
+             * @description 위도 (WGS84). 주출입구 좌표
+             * @example 37.499077
+             */
+            lat: number;
+            /**
+             * Format: double
+             * @description 경도 (WGS84). 주출입구 좌표
+             * @example 127.112296
+             */
+            lng: number;
+            /**
+             * Format: int32
+             * @description 중심에서의 거리 (m, 반올림)
+             * @example 320
+             */
+            distanceM: number;
+            /**
+             * Format: int32
+             * @description 기준일 전 12개월 유효 거래 수. 일괄 거래 제외.
+             * @example 152
+             */
+            recentTradeCount: number;
+        };
+        /** @description 반경 검색 결과 */
+        NearbyComplexes: {
+            /**
+             * Format: double
+             * @description 중심 위도
+             * @example 37.499077
+             */
+            lat: number;
+            /**
+             * Format: double
+             * @description 중심 경도
+             * @example 127.112296
+             */
+            lng: number;
+            /**
+             * Format: int32
+             * @description 반경 (m)
+             * @example 1000
+             */
+            radius: number;
+            /**
+             * Format: int32
+             * @description 반경 안의 전체 단지 수 (좌표 없는 단지 제외). items보다 많으면 잘린 것이다
+             * @example 51
+             */
+            totalCount: number;
+            /** @description 가까운 순 (같은 거리면 단지 ID 순), 최대 limit개 */
+            items: components["schemas"]["NearbyComplex"][];
         };
     };
     responses: never;
@@ -705,6 +819,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MonthlySeriesMonthlyPrice"];
+                };
+            };
+        };
+    };
+    nearby: {
+        parameters: {
+            query: {
+                /**
+                 * @description 중심 위도 (WGS84, 33–39)
+                 * @example 37.499077
+                 */
+                lat: number;
+                /**
+                 * @description 중심 경도 (WGS84, 124–132)
+                 * @example 127.112296
+                 */
+                lng: number;
+                /** @description 반경 (m, 100–3000) */
+                radius?: number;
+                /** @description 최대 건수 (1–500) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NearbyComplexes"];
                 };
             };
         };

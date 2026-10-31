@@ -43,10 +43,39 @@ public class ComplexQueryRepository {
             """;
 
     private static final String FIND_COMPLEX = """
-            SELECT c.apt_seq, c.name, c.sgg_cd, r.sgg_nm, c.umd_nm, c.build_year, c.road_address
+            SELECT c.apt_seq, c.name, c.sgg_cd, r.sgg_nm, c.umd_nm, c.build_year, c.road_address,
+                   ST_Y(c.location) AS lat, ST_X(c.location) AS lng
             FROM apt_complex c
             LEFT JOIN region r ON r.sgg_cd = c.sgg_cd
             WHERE c.apt_seq = :aptSeq
+            """;
+
+    // 반경 검색 (ADR 010 ⑧). 안쪽에서 반경으로 거르고 거리순으로 LIMIT까지 한 뒤 바깥에서 최근 거래 수를 붙인다.
+    // 그래야 거래 수 집계(뷰의 윈도 계산)가 반경 안 전체가 아니라 최대 limit개 단지에만 돈다.
+    // totalCount는 LIMIT 전에 count(*) OVER ()로 센다. location::geography는 인덱스 식과 같아야 GIST 인덱스를 쓴다
+    private static final String NEARBY = """
+            WITH center AS (
+                SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography AS g
+            ),
+            nearest AS (
+                SELECT c.apt_seq, c.name, c.sgg_cd, c.umd_nm, c.build_year,
+                       ST_Y(c.location) AS lat, ST_X(c.location) AS lng,
+                       ST_Distance(c.location::geography, center.g) AS distance,
+                       count(*) OVER () AS total_count
+                FROM apt_complex c, center
+                WHERE ST_DWithin(c.location::geography, center.g, :radius)
+                ORDER BY distance, c.apt_seq
+                LIMIT :limit
+            )
+            SELECT n.apt_seq, n.name, r.sgg_nm, n.umd_nm, n.build_year, n.lat, n.lng,
+                   ROUND(n.distance)::int AS distance_m, n.total_count, recent.cnt AS recent_trade_count
+            FROM nearest n
+            LEFT JOIN region r ON r.sgg_cd = n.sgg_cd
+            CROSS JOIN LATERAL (
+                SELECT count(*) AS cnt FROM valid_apt_trade v
+                WHERE v.apt_seq = n.apt_seq AND v.deal_date > :recentAfter AND NOT v.is_bulk
+            ) recent
+            ORDER BY n.distance, n.apt_seq
             """;
 
     // 마지막 거래 금액: 일괄 거래를 뺀 거래 중 계약일이 가장 늦은 것, 같은 날이면 id가 큰(늦게 수집된) 것
@@ -117,7 +146,34 @@ public class ComplexQueryRepository {
                 rs.getString("sgg_nm"),
                 rs.getString("umd_nm"),
                 getInteger(rs, "build_year"),
-                rs.getString("road_address"))).stream().findFirst();
+                rs.getString("road_address"),
+                getDouble(rs, "lat"),
+                getDouble(rs, "lng"))).stream().findFirst();
+    }
+
+    /** 반경 안 단지를 가까운 순으로 limit개, 그리고 반경 안 전체 수 */
+    public NearbyRows findNearby(double lat, double lng, int radius, int limit, LocalDate recentAfter) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("lat", lat)
+                .addValue("lng", lng)
+                .addValue("radius", radius)
+                .addValue("limit", limit)
+                .addValue("recentAfter", recentAfter);
+        int[] total = { 0 };
+        List<NearbyComplex> items = jdbc.query(NEARBY, params, (rs, i) -> {
+            total[0] = rs.getInt("total_count");
+            return new NearbyComplex(
+                    rs.getString("apt_seq"),
+                    rs.getString("name"),
+                    rs.getString("sgg_nm"),
+                    rs.getString("umd_nm"),
+                    getInteger(rs, "build_year"),
+                    rs.getDouble("lat"),
+                    rs.getDouble("lng"),
+                    rs.getInt("distance_m"),
+                    rs.getInt("recent_trade_count"));
+        });
+        return new NearbyRows(items, total[0]);
     }
 
     public List<AreaGroupSummary> findAreaGroups(String aptSeq) {
@@ -200,13 +256,22 @@ public class ComplexQueryRepository {
         return rs.wasNull() ? null : value;
     }
 
+    private static Double getDouble(ResultSet rs, String column) throws SQLException {
+        double value = rs.getDouble(column);
+        return rs.wasNull() ? null : value;
+    }
+
     private static List<BigDecimal> toAreas(Array array) throws SQLException {
         return Arrays.asList((BigDecimal[]) array.getArray());
     }
 
-    /** 단지 기본 정보 (거래 요약 제외). */
+    /** 단지 기본 정보 (거래 요약 제외). 좌표가 없으면 lat·lng는 null */
     public record ComplexRow(String aptSeq, String name, String sggCd, String sggName, String umdName,
-            Integer buildYear, String roadAddress) {
+            Integer buildYear, String roadAddress, Double lat, Double lng) {
+    }
+
+    /** 반경 검색 결과. totalCount는 limit으로 자르기 전 반경 안 전체 수 */
+    public record NearbyRows(List<NearbyComplex> items, int totalCount) {
     }
 
     /** 월별 중앙값·건수. provisional은 서비스에서 기준일로 정한다. */
