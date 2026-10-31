@@ -45,10 +45,13 @@ public class TradeReconcileService {
 
         repository.lockMonth(sggCd, dealYm);
 
-        // 같은 단지가 거래 수만큼 반복되므로 aptSeq 기준으로 하나만 남긴다.
+        // 같은 단지가 거래 수만큼 반복되므로 aptSeq 기준으로 하나만 남긴다. 단지 정보는 계약일이 가장 늦은 거래의 것을 쓴다
+        // (같은 달 안에서도 주소가 다른 거래가 있다). 날짜가 같으면 먼저 나온 거래. 해제된 거래도 빼지 않는다:
+        // 해제 여부와 관계없이 그 거래에 적힌 주소는 그 시점의 주소다 (ADR 003)
         // upsert는 단지 행을 잠그므로, 같은 단지를 포함한 다른 구×월 수집과 교착되지 않게 aptSeq 순서로 쓴다
         Map<String, TradeRecord> complexes = new TreeMap<>();
-        records.forEach(r -> complexes.put(r.aptSeq(), r));
+        records.forEach(r -> complexes.merge(r.aptSeq(), r,
+                (kept, next) -> next.dealDate().isAfter(kept.dealDate()) ? next : kept));
         repository.upsertComplexes(complexes.values());
 
         List<ExistingTrade> existing = repository.findTradesInMonth(sggCd, month.atDay(1), month.atEndOfMonth());

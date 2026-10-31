@@ -30,13 +30,26 @@ public class TradeReconcileRepository {
             (apt_complex.sgg_cd, apt_complex.umd_cd, apt_complex.jibun, apt_complex.road_address)
                 IS DISTINCT FROM (EXCLUDED.sgg_cd, EXCLUDED.umd_cd, EXCLUDED.jibun, EXCLUDED.road_address)""";
 
+    private static final String INFO_CHANGED = """
+            (apt_complex.name, apt_complex.sgg_cd, apt_complex.umd_cd, apt_complex.umd_nm,
+             apt_complex.jibun, apt_complex.road_address, apt_complex.build_year)
+                IS DISTINCT FROM
+            (EXCLUDED.name, EXCLUDED.sgg_cd, EXCLUDED.umd_cd, EXCLUDED.umd_nm,
+             EXCLUDED.jibun, EXCLUDED.road_address, EXCLUDED.build_year)""";
+
+    // 단지 정보는 더 최근 거래일 때만 덮는다 (ADR 003). 같은 계약일이면 기존 값을 유지한다.
+    // 값이 같아도 기준 날짜(source_deal_date)는 앞당긴다. 그러지 않으면 (A, 5월)에서 9월의 A를 건너뛴 뒤
+    // 7월의 B가 덮는다. updated_at은 단지 정보가 실제로 바뀔 때만 바꾼다("값이 바뀐 시각").
+    // 날짜 비교는 충돌한 행의 잠금을 잡은 뒤 평가되므로, 같은 단지를 다른 구×월 수집이 동시에 갱신해도 순서가 꼬이지 않는다
     private static final String UPSERT_COMPLEX = """
-            INSERT INTO apt_complex (apt_seq, name, sgg_cd, umd_cd, umd_nm, jibun, road_address, build_year)
-            VALUES (:aptSeq, :name, :sggCd, :umdCd, :umdNm, :jibun, :roadAddress, :buildYear)
+            INSERT INTO apt_complex (apt_seq, name, sgg_cd, umd_cd, umd_nm, jibun, road_address, build_year,
+                                     source_deal_date)
+            VALUES (:aptSeq, :name, :sggCd, :umdCd, :umdNm, :jibun, :roadAddress, :buildYear, :sourceDealDate)
             ON CONFLICT (apt_seq) DO UPDATE SET
                 location = CASE WHEN %1$s THEN NULL ELSE apt_complex.location END,
                 geocode_attempted_at = CASE WHEN %1$s THEN NULL ELSE apt_complex.geocode_attempted_at END,
                 geocode_error = CASE WHEN %1$s THEN NULL ELSE apt_complex.geocode_error END,
+                updated_at = CASE WHEN %2$s THEN now() ELSE apt_complex.updated_at END,
                 name = EXCLUDED.name,
                 sgg_cd = EXCLUDED.sgg_cd,
                 umd_cd = EXCLUDED.umd_cd,
@@ -44,13 +57,10 @@ public class TradeReconcileRepository {
                 jibun = EXCLUDED.jibun,
                 road_address = EXCLUDED.road_address,
                 build_year = EXCLUDED.build_year,
-                updated_at = now()
-            WHERE (apt_complex.name, apt_complex.sgg_cd, apt_complex.umd_cd, apt_complex.umd_nm,
-                   apt_complex.jibun, apt_complex.road_address, apt_complex.build_year)
-                IS DISTINCT FROM
-                  (EXCLUDED.name, EXCLUDED.sgg_cd, EXCLUDED.umd_cd, EXCLUDED.umd_nm,
-                   EXCLUDED.jibun, EXCLUDED.road_address, EXCLUDED.build_year)
-            """.formatted(ADDRESS_CHANGED);
+                source_deal_date = EXCLUDED.source_deal_date
+            WHERE apt_complex.source_deal_date IS NULL
+               OR EXCLUDED.source_deal_date > apt_complex.source_deal_date
+            """.formatted(ADDRESS_CHANGED, INFO_CHANGED);
 
     // 트랜잭션이 끝나면 자동으로 풀린다. 같은 구×월의 동시 수집만 직렬화한다
     private static final String LOCK_MONTH = "SELECT pg_advisory_xact_lock(hashtext(:lockKey))";
@@ -166,7 +176,8 @@ public class TradeReconcileRepository {
                 .addValue("umdNm", r.umdNm(), Types.VARCHAR)
                 .addValue("jibun", r.jibun(), Types.VARCHAR)
                 .addValue("roadAddress", r.roadAddress(), Types.VARCHAR)
-                .addValue("buildYear", r.buildYear(), Types.SMALLINT);
+                .addValue("buildYear", r.buildYear(), Types.SMALLINT)
+                .addValue("sourceDealDate", r.dealDate());
     }
 
     private static MapSqlParameterSource tradeParams(TradeRecord r) {
