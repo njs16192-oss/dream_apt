@@ -29,6 +29,7 @@ docs/troubleshooting.md
   - 행안부 도로명주소 API 키 `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY` 필요
   - 한 번에 다 돌리면 HTTP 타임아웃에 걸릴 수 있어서, 응답의 `remaining`이 0이 될 때까지 나눠 호출
 - Frontend: `cd frontend && npm run dev` (5173, `/api`는 8080으로 프록시)
+  - 지도 타일: `VITE_MAP_TILE_URL` (없으면 OSM 타일, docs/adr/010-geocoding.md ⑦)
   - 테스트: `npm test` (Vitest)
   - API 타입 재생성: 백엔드를 띄운 상태에서 `npm run gen:api` → `src/api/schema.d.ts` (커밋 대상, docs/adr/008-frontend-structure.md). 백엔드 응답·경로를 바꾸면 같은 PR에서 재생성
 - CI: GitHub Actions (`.github/workflows/ci.yml`, docs/adr/009-ci.md). PR마다 `./gradlew test`, 프론트 lint·test·build, `schema.d.ts` 최신 여부

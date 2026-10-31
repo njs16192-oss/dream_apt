@@ -110,6 +110,26 @@ curl -X POST "http://localhost:8080/api/admin/geocode?limit=1000"
 
 마커가 최대 500개라 Leaflet은 `preferCanvas: true`로 그린다(SVG보다 가볍다). `circleMarker`는 canvas로도 그려진다.
 
+**지도 화면 `/map?lat=&lng=&r=` (2026-10-31)**
+
+| 항목 | 결정 |
+|---|---|
+| URL | 중심·반경을 주소에 둔다. 없거나 잘못되면 서울시청(37.5665, 126.978)·1km로 replace. 위경도는 소수 6자리 |
+| 반경 | 500m·1km·2km·3km (서버 최대 3km). 기본 1km |
+| 조작 | 지도 빈 곳(반경 원 안 포함)을 누르면 그 위치가 중심. 중심·반경 변경은 보기 설정이라 replace (ADR 008). 마커를 누르면 단지 상세로 push |
+| 목록 | 지도 아래 거리순 목록. 잘리면 "반경 3km 안 974개 중 가까운 300개만" 안내. 중심을 바꾸는 동안 이전 목록을 흐리게 유지(`keepPreviousData`) |
+| 진입 | 헤더 "지도", 단지 상세 "주변 단지 지도"(좌표가 있을 때만, 그 단지 중심 1km) |
+| 번들 | 지도 화면을 `React.lazy`로 나눈다. Leaflet·CSS는 지도 chunk(153KB, gzip 45KB)에만 들어가고 메인 번들은 약 3KB만 늘었다 |
+
+Leaflet을 React에서 쓸 때 주의한 점:
+- 마커는 `bubblingMouseEvents: false`다. 기본값(true)이면 마커 클릭이 지도 클릭으로 번져서, 상세로 가는 동시에 중심이 옮겨진다
+- 반경 원과 중심점은 `interactive: false`다. 클릭 대상에서 빠지므로 원 안쪽을 눌러도 지도 클릭(중심 이동)이 된다. 원에 `bubblingMouseEvents: false`를 주면 원 안쪽 클릭을 원이 삼킨다
+- 상세 이동은 `onSelect` 콜백으로 페이지가 React Router `navigate`를 부른다. `location.href`면 앱 전체를 다시 불러온다
+- 지도 컨테이너를 `isolation: isolate`로 감싼다. Leaflet pane·컨트롤의 z-index(400–1000)가 헤더 위로 올라오지 않는다
+- 지도는 effect 한 번에 만들고 cleanup에서 `map.remove()`를 부른다. StrictMode에서 effect가 두 번 돌아도 "Map container is already initialized"가 나지 않는다
+- 처음 그릴 때는 지도에 보기 영역이 없어 `circle.getBounds()`가 실패한다(브라우저 확인에서 발견). 중심에서 지름만큼의 사각형(`LatLng.toBounds`)으로 `fitBounds`한다
+- 테스트: 화면 테스트는 `MapView`를 mock하고 props·콜백을 검사한다. `MapView`는 실제 Leaflet으로 그리는 스모크 테스트를 따로 둔다(jsdom canvas는 가짜 2D 컨텍스트). 클릭·z-index는 브라우저(Edge)에서 확인했다
+
 ### ⑧ 반경 검색 (2026-10-31)
 
 `GET /api/complexes/nearby?lat=&lng=&radius=1000&limit=300`
