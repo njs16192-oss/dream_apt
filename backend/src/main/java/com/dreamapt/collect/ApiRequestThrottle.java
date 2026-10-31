@@ -31,7 +31,12 @@ public class ApiRequestThrottle {
 
     @Autowired
     public ApiRequestThrottle(DataGoKrProperties properties) {
-        this(properties.requestInterval() == null ? Duration.ZERO : properties.requestInterval(),
+        this(properties.requestInterval());
+    }
+
+    /** 공공데이터포털 밖의 API(도로명주소 등)용. 호출 간격과 호출 수를 따로 센다 */
+    public ApiRequestThrottle(Duration interval) {
+        this(interval == null ? Duration.ZERO : interval,
                 System::nanoTime, d -> TimeUnit.NANOSECONDS.sleep(d.toNanos()));
     }
 

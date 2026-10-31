@@ -35,6 +35,7 @@ class MigrationIntegrationTest {
 
         assertThat(types).containsExactly(
                 "apt_complex.created_at=timestamp with time zone",
+                "apt_complex.geocode_attempted_at=timestamp with time zone",
                 "apt_complex.updated_at=timestamp with time zone",
                 "apt_trade.created_at=timestamp with time zone",
                 "apt_trade.missing_since=timestamp with time zone",

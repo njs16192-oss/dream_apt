@@ -135,6 +135,59 @@ class TradeReconcileIntegrationTest {
     }
 
     @Test
+    void 이름만_바뀌면_좌표와_지오코딩_기록을_유지한다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+        markGeocoded(original.aptSeq());
+
+        save(List.of(withAddress(original, "가양2단지성지아파트", original.jibun(), original.roadAddress())));
+
+        Map<String, Object> row = geocodeColumns(original.aptSeq());
+        assertThat(row.get("has_location")).isEqualTo(true);
+        assertThat(row.get("geocode_attempted_at")).isNotNull();
+        assertThat(row.get("geocode_error")).isEqualTo("MISMATCH");
+    }
+
+    @Test
+    void 주소가_바뀌면_좌표와_지오코딩_기록을_지운다() {
+        TradeRecord original = sample.get(0);
+        save(List.of(original));
+
+        markGeocoded(original.aptSeq());
+        save(List.of(withAddress(original, original.aptNm(), "999-9", original.roadAddress())));
+        assertThat(geocodeColumns(original.aptSeq()))
+                .containsEntry("has_location", false)
+                .containsEntry("geocode_attempted_at", null)
+                .containsEntry("geocode_error", null);
+
+        markGeocoded(original.aptSeq());
+        save(List.of(withAddress(original, original.aptNm(), "999-9", "새도로명 1")));
+        assertThat(geocodeColumns(original.aptSeq())).containsEntry("has_location", false);
+    }
+
+    // 실제로는 성공하면 geocode_error가 NULL이지만, 세 컬럼이 각각 유지·삭제되는지 보려고 모두 채운다
+    private void markGeocoded(String aptSeq) {
+        jdbc.update("""
+                UPDATE apt_complex SET location = ST_SetSRID(ST_MakePoint(127.1, 37.5), 4326),
+                    geocode_attempted_at = now(), geocode_error = 'MISMATCH'
+                WHERE apt_seq = ?
+                """, aptSeq);
+    }
+
+    private Map<String, Object> geocodeColumns(String aptSeq) {
+        return jdbc.queryForMap("""
+                SELECT location IS NOT NULL AS has_location, geocode_attempted_at, geocode_error
+                FROM apt_complex WHERE apt_seq = ?
+                """, aptSeq);
+    }
+
+    private static TradeRecord withAddress(TradeRecord r, String aptNm, String jibun, String roadAddress) {
+        return new TradeRecord(r.aptSeq(), aptNm, r.sggCd(), r.umdCd(), r.umdNm(), jibun, roadAddress,
+                r.buildYear(), r.dealDate(), r.dealAmount(), r.excluUseAr(), r.floor(), r.aptDong(), r.buyerGbn(),
+                r.sellerGbn(), r.dealingGbn(), r.agentSggNm(), r.cancelled(), r.cancelDate(), r.registeredDate());
+    }
+
+    @Test
     void 일괄_매매_170건이_모두_저장되고_재수집해도_그대로다_해링턴타워() {
         List<TradeRecord> harrington = load(HARRINGTON);
 

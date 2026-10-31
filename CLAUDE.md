@@ -24,6 +24,9 @@ docs/troubleshooting.md
 - 수집 배치 (docs/adr/006-batch-execution.md): `cd backend && ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`
   - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
   - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
+- 단지 좌표 지오코딩 (docs/adr/010-geocoding.md): 관리 API `POST /api/admin/geocode?limit=1000` (`retryFailed=true`면 실패한 단지도 다시)
+  - 행안부 도로명주소 API 키 `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY` 필요
+  - 한 번에 다 돌리면 HTTP 타임아웃에 걸릴 수 있어서, 응답의 `remaining`이 0이 될 때까지 나눠 호출
 - Frontend: `cd frontend && npm run dev` (5173, `/api`는 8080으로 프록시)
   - 테스트: `npm test` (Vitest)
   - API 타입 재생성: 백엔드를 띄운 상태에서 `npm run gen:api` → `src/api/schema.d.ts` (커밋 대상, docs/adr/008-frontend-structure.md). 백엔드 응답·경로를 바꾸면 같은 PR에서 재생성
@@ -49,7 +52,7 @@ docs/troubleshooting.md
 ## 규칙
 - Java 17 문법까지만 사용
 - 스키마 변경은 Flyway 마이그레이션 파일로만 (`ddl-auto`는 validate)
-- API 키 등 비밀값은 커밋 금지. 환경변수 `DATA_GO_KR_API_KEY`로 주입
+- API 키 등 비밀값은 커밋 금지. 환경변수 `DATA_GO_KR_API_KEY`, `JUSO_SEARCH_API_KEY`, `JUSO_COORD_API_KEY`로 주입
 - 설정값은 `${ENV_NAME:기본값}` 형식 사용 (k8s에서 환경변수로 교체 예정)
 - 커밋 메시지: Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
   - 타입 접두사는 영어, 설명과 본문은 한국어 (예: `feat: 실거래가 수집 API 추가`, `fix: 빈 동 정보를 null로 저장`)
