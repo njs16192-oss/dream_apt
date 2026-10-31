@@ -40,7 +40,9 @@ export function MapView({ center, radius, items, onCenterChange, onSelect }: Pro
   })
 
   useEffect(() => {
-    const map = L.map(containerRef.current!, { preferCanvas: true })
+    // zoomAnimation: false — 줌 애니메이션은 끝 처리를 setTimeout으로 예약하는데 remove()가 이를 취소하지 않는다.
+    // 중심·반경을 바꾸고 바로 다른 화면으로 가면 정리된 지도를 건드려 '_leaflet_pos' of undefined가 났다
+    const map = L.map(containerRef.current!, { preferCanvas: true, zoomAnimation: false })
     L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(map)
     map.on('click', (event: L.LeafletMouseEvent) => onCenterChangeRef.current(event.latlng.lat, event.latlng.lng))
     areaRef.current = L.layerGroup().addTo(map)

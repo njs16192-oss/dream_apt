@@ -128,6 +128,7 @@ Leaflet을 React에서 쓸 때 주의한 점:
 - 지도 컨테이너를 `isolation: isolate`로 감싼다. Leaflet pane·컨트롤의 z-index(400–1000)가 헤더 위로 올라오지 않는다
 - 지도는 effect 한 번에 만들고 cleanup에서 `map.remove()`를 부른다. StrictMode에서 effect가 두 번 돌아도 "Map container is already initialized"가 나지 않는다
 - 처음 그릴 때는 지도에 보기 영역이 없어 `circle.getBounds()`가 실패한다(브라우저 확인에서 발견). 중심에서 지름만큼의 사각형(`LatLng.toBounds`)으로 `fitBounds`한다
+- 지도는 `zoomAnimation: false`로 만든다. 줌 애니메이션은 끝 처리를 `setTimeout`으로 예약하는데 `remove()`가 이를 취소하지 않는다. 그래서 중심·반경을 바꾸고 바로 다른 화면으로 가면 `'_leaflet_pos' of undefined`가 났다(브라우저에서 반복 확인, CI에서 발견). 이 화면은 반경 단위로 크게 움직이므로 애니메이션 없이도 충분하다
 - 테스트: 화면 테스트는 `MapView`를 mock하고 props·콜백을 검사한다. `MapView`는 실제 Leaflet으로 그리는 스모크 테스트를 따로 둔다(jsdom canvas는 가짜 2D 컨텍스트). 클릭·z-index는 브라우저(Edge)에서 확인했다
 
 ### ⑧ 반경 검색 (2026-10-31)
