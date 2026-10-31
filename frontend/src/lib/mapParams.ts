@@ -12,6 +12,11 @@ const LNG_RANGE = [124, 132] as const
 
 export type MapState = { lat: number; lng: number; radius: Radius }
 
+/** 서버가 받는 위경도 범위 안인가. 지도 클릭이 이 밖이면 화면이 무시한다 (URL에 쓰면 기본 중심으로 보정돼 엉뚱한 곳으로 튄다) */
+export function isInServiceArea(lat: number, lng: number): boolean {
+  return inRange(lat, LAT_RANGE) && inRange(lng, LNG_RANGE)
+}
+
 /** URL에는 소수 6자리(약 0.1m)까지만 쓴다 */
 export function roundCoord(value: number): number {
   return Math.round(value * 1e6) / 1e6
@@ -53,5 +58,9 @@ export function mapPath(state: MapState): string {
 function parseCoord(raw: string | null, [min, max]: readonly [number, number]): number | null {
   if (raw === null || raw.trim() === '') return null
   const value = Number(raw)
-  return Number.isFinite(value) && value >= min && value <= max ? value : null
+  return inRange(value, [min, max]) ? value : null
+}
+
+function inRange(value: number, [min, max]: readonly [number, number]): boolean {
+  return Number.isFinite(value) && value >= min && value <= max
 }

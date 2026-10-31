@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CENTER, DEFAULT_RADIUS, isCanonical, mapPath, mapSearchParams, parseMapParams } from './mapParams'
+import {
+  DEFAULT_CENTER,
+  DEFAULT_RADIUS,
+  isCanonical,
+  isInServiceArea,
+  mapPath,
+  mapSearchParams,
+  parseMapParams,
+} from './mapParams'
+
+describe('isInServiceArea', () => {
+  it('서버와 같은 범위(위도 33–39, 경도 124–132)만 받는다', () => {
+    expect(isInServiceArea(37.5, 127)).toBe(true)
+    expect(isInServiceArea(33, 124)).toBe(true)
+    expect(isInServiceArea(39, 132)).toBe(true)
+    expect(isInServiceArea(32.99, 127)).toBe(false)
+    expect(isInServiceArea(37.5, 132.01)).toBe(false)
+    expect(isInServiceArea(Number.NaN, 127)).toBe(false)
+  })
+})
 
 const parse = (search: string) => parseMapParams(new URLSearchParams(search))
 const canonical = (search: string) => isCanonical(new URLSearchParams(search))

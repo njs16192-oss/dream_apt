@@ -8,7 +8,7 @@ import { ErrorState } from '../components/ErrorState'
 import { Loading } from '../components/Loading'
 import { MapView } from '../components/MapView'
 import { formatDistance } from '../lib/format'
-import { isCanonical, mapSearchParams, parseMapParams, RADII, type Radius } from '../lib/mapParams'
+import { isCanonical, isInServiceArea, mapSearchParams, parseMapParams, RADII, type Radius } from '../lib/mapParams'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 /**
@@ -31,7 +31,11 @@ export function MapPage() {
   const nearby = useQuery(nearbyComplexesQuery(state.lat, state.lng, state.radius))
 
   const changeCenter = useCallback(
-    (lat: number, lng: number) => setParams(mapSearchParams({ lat, lng, radius: state.radius }), { replace: true }),
+    (lat: number, lng: number) => {
+      // 멀리 축소한 뒤 한국 밖(바다 등)을 누르면 무시한다. URL에 쓰면 기본 중심(서울시청)으로 보정돼 엉뚱한 곳으로 튄다
+      if (!isInServiceArea(lat, lng)) return
+      setParams(mapSearchParams({ lat, lng, radius: state.radius }), { replace: true })
+    },
     [setParams, state.radius],
   )
   const changeRadius = (radius: Radius) => setParams(mapSearchParams({ ...state, radius }), { replace: true })

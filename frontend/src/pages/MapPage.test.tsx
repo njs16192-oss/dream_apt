@@ -137,6 +137,19 @@ describe('MapPage', () => {
     expect(location()).toBe('/start')
   })
 
+  it('서비스 범위 밖(멀리 축소한 뒤 바다 등)을 누르면 무시한다', async () => {
+    const server = mockApi({ [NEARBY]: nearby([]) })
+    renderPage()
+    await screen.findByText('반경 안에 단지가 없어요')
+
+    // URL에 쓰면 기본 중심(서울시청)으로 보정돼 엉뚱한 곳으로 튄다
+    act(() => mapProps().onCenterChange(30.0, 125.0))
+    act(() => mapProps().onCenterChange(37.5, 140.0))
+
+    expect(location()).toBe(HELIO)
+    expect(server.to(NEARBY)).toHaveLength(1)
+  })
+
   it('마커를 고르면 라우터로 단지 상세에 간다 (push)', async () => {
     mockApi({ [NEARBY]: nearby([item('11710-8865', '헬리오시티', 0)]) })
     renderPage()

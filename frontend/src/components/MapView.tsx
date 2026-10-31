@@ -5,7 +5,8 @@ import type { Schemas } from '../api/client'
 import { formatDistance } from '../lib/format'
 import { CHART } from '../lib/chartTheme'
 
-const TILE_URL = import.meta.env.VITE_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+// ||: 배포 때 환경변수를 빈 문자열로 둬도 기본 타일을 쓴다 (??면 빈 문자열을 그대로 써서 타일이 안 나온다)
+const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 // OSM 타일은 출처 표시가 필수이고, 단지 좌표는 행정안전부 데이터(공공누리 제1유형)라 함께 밝힌다 (ADR 010 ⑦)
 const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | 주소·좌표: 행정안전부'
