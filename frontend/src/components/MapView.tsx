@@ -59,7 +59,10 @@ export function MapView({ center, radius, items, onCenterChange, onSelect }: Pro
     const map = mapRef.current!
     const area = areaRef.current!
     area.clearLayers()
-    const circle = L.circle([center.lat, center.lng], {
+    // 처음에는 지도에 아직 보기 영역이 없어 원이 투영되지 않는다. 그래서 circle.getBounds() 대신
+    // 중심에서 지름만큼의 사각형으로 맞춘다 (원을 꼭 감싸는 크기다)
+    map.fitBounds(L.latLng(center.lat, center.lng).toBounds(radius * 2), { padding: [12, 12] })
+    L.circle([center.lat, center.lng], {
       radius,
       interactive: false,
       color: CHART.primary,
@@ -74,7 +77,6 @@ export function MapView({ center, radius, items, onCenterChange, onSelect }: Pro
       fillColor: '#ffffff',
       fillOpacity: 1,
     }).addTo(area)
-    map.fitBounds(circle.getBounds(), { padding: [12, 12] })
   }, [center.lat, center.lng, radius])
 
   // 단지 마커. 누르면 상세로 간다. bubblingMouseEvents: false라 같은 클릭이 지도 클릭(중심 이동)으로 번지지 않는다
