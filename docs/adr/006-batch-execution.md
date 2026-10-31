@@ -11,7 +11,7 @@
 | 실행 방식 | Spring Batch Job `collectTradeJob` 하나. 모드(`daily`/`weekly`/`backfill`)와 기준일은 Job 파라미터 |
 | 실행 위치 | 웹 앱과 같은 이미지를 `batch` 프로필로 실행. 전용 runner가 Job 하나를 실행하고 종료 코드와 함께 끝난다 → k8s CronJob (8단계) |
 | 웹 앱 | Job 자동 실행 안 함 (`spring.batch.job.enabled=false`). 관리 API로만 수동 실행 |
-| Job 구조 | Tasklet step 1개. 구×월을 하나씩 처리하고, 하나의 실패는 기록하고 다음으로 넘어감 |
+| Job 구조 | 수집 Tasklet step → 신규 단지 지오코딩 step(2026-10-31 추가, ADR 010). 수집은 구×월을 하나씩 처리하고, 하나의 실패는 기록하고 다음으로 넘어감. 종료 코드는 수집 step 기준 |
 | 이어하기 | Spring Batch restart 대신 `collect_history`(구×월별 최신 상태)를 기준으로 |
 | JobInstance | 실행마다 고유한 `run.id`(시작 시각 ms)를 넣어 새 인스턴스. incrementer는 쓰지 않음 |
 | 메타데이터 | `BATCH_*` 테이블을 Flyway 마이그레이션으로 관리 (`initialize-schema=never`) |
@@ -86,6 +86,12 @@ Spring Batch의 이력 관리는 얻지만, B의 "웹 서버 안에서 돈다"�
 - **chunk 방식을 쓰지 않은 이유**: chunk 방식에서는 read-process-write 전체가 한 트랜잭션이라 API 호출 중에도 DB 커넥션을 잡는다. 지금 수집 코드는 "API 호출은 트랜잭션 밖, 저장만 트랜잭션"(`TradeCollectService`)으로 설계돼 있다. 그래서 Tasklet step은 `ResourcelessTransactionManager`(아무것도 하지 않는 트랜잭션 매니저)로 감싸고, 저장 트랜잭션은 기존처럼 `TradeReconcileService`가 연다
 - 처리 건수 요약(성공·실패·건너뜀·남은 대상·호출 수)은 StepExecution의 ExecutionContext와 로그에 남긴다
 
+**추가 (2026-10-31): 신규 단지 지오코딩 step** ([ADR 010](010-geocoding.md))
+- 수집 step 뒤에 `geocodeComplexesStep`이 붙는다. 좌표 없는 단지를 최대 `COLLECT_GEOCODE_LIMIT`(기본 200, 0이면 끔)개 지오코딩한다. 실패로 기록된 단지는 다시 시도하지 않는다. 모든 모드에서 돈다
+- 수집 step이 `FAILED`면 Job이 멈추고 지오코딩은 돌지 않는다. 같은 모드가 실행 중(4)이면 첫 step 전에 멈추므로 역시 돌지 않는다
+- 지오코딩 실패(키 거부 등)는 잡아서 요약(`summary.error`)과 로그에만 남기고 step은 `COMPLETED`로 끝낸다. 좌표는 수집의 부가 작업이라 수집 결과와 종료 코드를 바꾸지 않는다
+- 이 step도 `ResourcelessTransactionManager`로 감싼다. 기본 트랜잭션 매니저면 tasklet 전체(약 2분)가 트랜잭션 하나가 되어, 단지마다 바로 커밋하는 지오코딩 설계가 깨지고 중간 예외에 앞서 저장한 좌표까지 롤백된다
+
 ### ② 실패 격리와 재시도
 | 오류 | 예 | 처리 |
 |---|---|---|
@@ -138,6 +144,7 @@ CronJob은 컨테이너 종료 코드가 0이 아니면 실패로 본다. 종료
 - `backfill`이 호출 상한에 걸려 멈추는 것은 의도한 동작이라 0이다. 남은 대상 수는 실행 요약에 남는다
 - 중복 실행(4)은 `STOPPED`로 남긴다. `COMPLETED`로 두면 메타데이터에서 성공한 실행으로 보여, "최근 성공 실행" 같은 모니터링 지표가 아무것도 수집하지 않은 실행으로 오염된다
 - Spring Boot 기본 종료 코드 생성기는 BatchStatus 순번을 쓰므로(`COMPLETED`면 0) 일부 실패를 구분하지 못한다. 전용 runner가 ExitStatus를 보고 위 표대로 종료 코드를 정한다 (`CollectJobExitCodes`)
+- **Job ExitStatus는 수집 step 기준이다 (2026-10-31).** Spring Batch는 마지막 step의 ExitStatus를 Job ExitStatus로 쓴다. 지오코딩 step이 마지막에 붙으면서, 수집이 일부 실패해도 지오코딩이 `COMPLETED`면 종료 코드가 0이 될 수 있었다. `CollectStepExitStatusListener`가 `afterJob`에서 Job이 `COMPLETED`이고 수집 step의 ExitStatus가 `COMPLETED`가 아니면 그 값을 Job에 다시 싣는다. 수집 step 실행이 없는 중복 실행(4)에는 아무것도 하지 않는다
 
 ### ⑦ 동시 실행 방지: 같은 모드끼리만
 **같은 모드**(`mode` 파라미터)의 실행은 한 번에 하나만 돈다. 모드가 다르면 동시에 돌아도 된다.
