@@ -144,7 +144,7 @@ class CollectTargetsTaskletTest {
 
     private CollectTargetsTasklet tasklet(CollectMode mode, LocalDate baseDate, int maxCalls, Clock clock) {
         CollectBatchProperties properties = new CollectBatchProperties(SEOUL, YearMonth.of(2026, 9), maxCalls,
-                Duration.ofHours(2), new CollectBatchProperties.Retry(0, Duration.ofMillis(1), 1));
+                Duration.ofHours(2), new CollectBatchProperties.Retry(0, Duration.ofMillis(1), 1), 0);
         return new CollectTargetsTasklet(mode, baseDate, regionRepository, historyRepository, runner, throttle,
                 properties, clock);
     }
