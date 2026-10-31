@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { formatArea, formatDate, formatManwon, toPyeong } from './format'
+import { formatArea, formatDate, formatDistance, formatManwon, toPyeong } from './format'
+
+describe('formatDistance', () => {
+  it.each([
+    [0, '0m'],
+    [320, '320m'],
+    [999, '999m'],
+    [1000, '1km'],
+    [1250, '1.3km'],
+    [2000, '2km'],
+    [2949, '2.9km'],
+  ])('%dm → %s', (meters, expected) => {
+    expect(formatDistance(meters)).toBe(expected)
+  })
+})
 
 describe('formatManwon', () => {
   it.each([

@@ -11,6 +11,7 @@ import { Pagination } from '../components/Pagination'
 import { PriceTrend } from '../components/PriceTrend'
 import { TradeList } from '../components/TradeList'
 import { parsePage, pickAreaGroup, searchWith } from '../lib/complexParams'
+import { DEFAULT_RADIUS, mapPath } from '../lib/mapParams'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 /**
@@ -141,12 +142,23 @@ function ComplexHeader({ complex }: { complex: Schemas['ComplexDetail'] }) {
         {complex.buildYear !== null && ` · ${complex.buildYear}년 준공`}
       </p>
       {complex.roadAddress && <p className="text-sm text-slate-500">{complex.roadAddress}</p>}
-      <Link
-        to={`/regions/${complex.sggCd}`}
-        className="inline-block pt-1 text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
-      >
-        {complex.sggName} 거래량 보기 →
-      </Link>
+      <div className="flex flex-wrap gap-x-4 pt-1">
+        <Link
+          to={`/regions/${complex.sggCd}`}
+          className="text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
+        >
+          {complex.sggName} 거래량 보기 →
+        </Link>
+        {/* 좌표가 없는 단지(지오코딩 실패)는 지도 링크를 두지 않는다 */}
+        {complex.lat !== null && complex.lng !== null && (
+          <Link
+            to={mapPath({ lat: complex.lat, lng: complex.lng, radius: DEFAULT_RADIUS })}
+            className="text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
+          >
+            주변 단지 지도 →
+          </Link>
+        )}
+      </div>
     </header>
   )
 }

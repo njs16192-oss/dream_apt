@@ -140,6 +140,24 @@ describe('ComplexPage', () => {
     expect(screen.queryByText(/준공/)).not.toBeInTheDocument()
   })
 
+  it('좌표가 있으면 그 단지를 중심으로 한 주변 단지 지도 링크를 둔다', async () => {
+    setup()
+    renderPage()
+
+    expect(await screen.findByRole('link', { name: '주변 단지 지도 →' })).toHaveAttribute(
+      'href',
+      '/map?lat=37.499077&lng=127.112296&r=1000',
+    )
+  })
+
+  it('좌표가 없으면 지도 링크가 없다', async () => {
+    setup({ detail: { body: complex({ lat: null, lng: null }) } })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '헬리오시티' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '주변 단지 지도 →' })).not.toBeInTheDocument()
+  })
+
   it('없는 단지면 404 안내와 검색 링크를 보여주고 거래 목록은 요청하지 않는다', async () => {
     const server = setup({ detail: { status: 404, body: { status: 404, detail: '단지 없음' } } })
     renderPage()
