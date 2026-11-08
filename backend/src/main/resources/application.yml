@@ -1,6 +1,10 @@
 spring:
   application:
     name: dream-apt
+  web:
+    error:
+      # 오류 응답에 스택트레이스를 싣지 않는다. devtools는 로컬에서 always로 바꾸므로 명시한다
+      include-stacktrace: never
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/dreamapt}
     username: ${DB_USERNAME:dreamapt}
