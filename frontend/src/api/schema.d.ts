@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 회원 가입
+         * @description 이메일은 소문자로 저장한다. 이미 가입된 이메일이면 409
+         */
+        post: operations["signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/regions": {
         parameters: {
             query?: never;
@@ -164,6 +184,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SignupRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        SignupResponse: {
+            /** Format: int64 */
+            id: number;
+            email: string;
+        };
         /** @description 시군구 */
         RegionItem: {
             /**
@@ -609,6 +639,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignupResponse"];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: never;
