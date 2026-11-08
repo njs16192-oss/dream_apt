@@ -2,10 +2,11 @@
 
 CREATE TABLE member (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    email               VARCHAR(254)    NOT NULL UNIQUE,
+    email               VARCHAR(254)    NOT NULL,
     password_hash       VARCHAR(100)    NOT NULL,
     role                VARCHAR(20)     NOT NULL DEFAULT 'USER',
     created_at          TIMESTAMPTZ     NOT NULL,
+    CONSTRAINT uq_member_email UNIQUE (email), -- 동시 가입 경쟁을 409로 바꿀 때 이 이름으로 구분한다 (SignupService)
     CONSTRAINT ck_member_role CHECK (role IN ('USER', 'ADMIN'))
 );
 
