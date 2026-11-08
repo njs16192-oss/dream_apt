@@ -6,15 +6,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import com.dreamapt.complex.ComplexController;
-import com.dreamapt.region.RegionController;
 
 /**
- * 조회 API 오류를 ProblemDetail로 응답한다. 파라미터 검증·형식 오류(400)는 ResponseEntityExceptionHandler가 처리한다.
- * 관리 API의 기존 오류 응답 형식을 바꾸지 않도록 조회 컨트롤러에만 적용한다 (ApiJsonCompatibilityTest).
+ * 모든 컨트롤러의 오류를 ProblemDetail로 응답한다. 파라미터 검증·형식 오류(400)는 ResponseEntityExceptionHandler가 처리한다.
+ * 컨트롤러 안의 @ExceptionHandler(관리 API의 409·404·502 등)가 먼저 적용되고, 거기서 처리하지 않은 오류를 여기서 받는다.
  */
-@RestControllerAdvice(assignableTypes = { ComplexController.class, RegionController.class })
-public class QueryApiExceptionHandler extends ResponseEntityExceptionHandler {
+@RestControllerAdvice
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail handleNotFound(NotFoundException e) {

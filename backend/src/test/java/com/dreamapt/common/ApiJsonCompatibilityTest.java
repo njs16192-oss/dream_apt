@@ -99,8 +99,10 @@ class ApiJsonCompatibilityTest {
     }
 
     @Test
-    void 파라미터_검증_실패는_본문_없는_400() throws Exception {
-        assertResponse(post("/api/admin/collect").param("sggCd", "115").param("dealYm", "202609"), 400, null, "");
+    void 파라미터_검증_실패는_ProblemDetail_400() throws Exception {
+        assertResponse(post("/api/admin/collect").param("sggCd", "115").param("dealYm", "202609"),
+                400, "application/problem+json", """
+                        {"detail":"Validation failure","instance":"/api/admin/collect","status":400,"title":"Bad Request"}""");
     }
 
     @Test

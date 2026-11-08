@@ -29,9 +29,9 @@ import com.dreamapt.common.BadRequestException;
 import com.dreamapt.common.MonthlySeries;
 import com.dreamapt.common.NotFoundException;
 import com.dreamapt.common.PageResponse;
-import com.dreamapt.common.QueryApiExceptionHandler;
+import com.dreamapt.common.ApiExceptionHandler;
 
-@WebMvcTest({ ComplexController.class, QueryApiExceptionHandler.class })
+@WebMvcTest({ ComplexController.class, ApiExceptionHandler.class })
 class ComplexControllerTest {
 
     @Autowired

@@ -21,9 +21,9 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import com.dreamapt.common.BadRequestException;
 import com.dreamapt.common.MonthlySeries;
 import com.dreamapt.common.NotFoundException;
-import com.dreamapt.common.QueryApiExceptionHandler;
+import com.dreamapt.common.ApiExceptionHandler;
 
-@WebMvcTest({ RegionController.class, QueryApiExceptionHandler.class })
+@WebMvcTest({ RegionController.class, ApiExceptionHandler.class })
 class RegionControllerTest {
 
     @Autowired
