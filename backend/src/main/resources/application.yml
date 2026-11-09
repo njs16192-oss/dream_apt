@@ -37,6 +37,10 @@ spring:
 springdoc:
   swagger-ui:
     enabled: ${SWAGGER_UI_ENABLED:true}
+    # Try it out의 POST 등에 XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 붙인다 (CSRF, ADR 011 ①).
+    # 쿠키·헤더 이름은 springdoc 기본값이 Spring Security와 같다
+    csrf:
+      enabled: true
 management:
   endpoints:
     web:

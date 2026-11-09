@@ -110,6 +110,12 @@ class ApiDocsIntegrationTest {
             mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
         }
 
+        @Test
+        void Swagger_UI는_XSRF_TOKEN_쿠키를_헤더로_보낸다() throws Exception {
+            // springdoc이 csrf.enabled일 때 initializer에 쿠키를 읽어 헤더를 붙이는 requestInterceptor를 넣는다
+            assertThat(body("/swagger-ui/swagger-initializer.js")).contains("XSRF-TOKEN", "X-XSRF-TOKEN");
+        }
+
         private String body(String path) throws Exception {
             return mockMvc.perform(get(path)).andExpect(status().isOk()).andReturn().getResponse()
                     .getContentAsString(StandardCharsets.UTF_8);
