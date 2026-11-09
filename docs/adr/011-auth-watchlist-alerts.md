@@ -153,3 +153,8 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 - **`/error`는 허용한다.** 컨트롤러 밖 오류는 `/error`로 다시 들어오는데, 막으면 원래 상태 코드 대신 401이 나간다
 - **401·403은 필터에서 `SecurityProblemHandler`가 ProblemDetail(`application/problem+json`)로 쓴다.** 컨트롤러 밖이라 `ApiExceptionHandler`가 받지 못한다. 컨트롤러와 같은 Jackson 설정과 ProblemDetail mixin을 쓴다
 - **세션 만료**는 이 PR에서는 서블릿 기본값(30분)이다. 7일과 DB 저장은 PR 4에서 함께 적용한다
+
+### 세션 저장 (PR 4)
+- **브라우저를 닫으면 로그아웃한다.** 공용 PC 보안을 위해 세션 쿠키에 유효기간(max-age)을 주지 않는다. 서버 세션은 마지막 요청 후 7일 뒤 정리된다
+- **세션 테이블은 Flyway(V12)로 만든다.** Spring Session의 schema-postgresql.sql을 그대로 옮겼고, 자동 생성(initialize-schema)은 never로 끈다
+- **세션 쿠키 이름이 JSESSIONID에서 SESSION으로 바뀐다.** Spring Session이 서블릿 세션을 대신하기 때문이다

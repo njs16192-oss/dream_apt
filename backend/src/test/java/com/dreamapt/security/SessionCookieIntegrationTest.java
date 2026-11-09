@@ -20,7 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import com.dreamapt.support.TestcontainersConfiguration;
 
 /**
- * 세션 쿠키 속성 (ADR 011 ①). MockMvc는 세션 쿠키(JSESSIONID)를 만들지 않으므로 실제 서버(Tomcat)를 띄워 Set-Cookie를 본다.
+ * 세션 쿠키 속성 (ADR 011 ①). MockMvc는 세션 쿠키(SESSION)를 만들지 않으므로 실제 서버(Tomcat)를 띄워 Set-Cookie를 본다.
  */
 class SessionCookieIntegrationTest {
 
@@ -34,7 +34,7 @@ class SessionCookieIntegrationTest {
 
         @Test
         void 세션_쿠키는_HttpOnly_SameSite_Lax_Secure() throws Exception {
-            String sessionCookie = loginSetCookie(port, "JSESSIONID=");
+            String sessionCookie = loginSetCookie(port, "SESSION=");
 
             assertThat(sessionCookie).contains("HttpOnly").contains("SameSite=Lax").contains("Secure");
         }
@@ -59,7 +59,7 @@ class SessionCookieIntegrationTest {
 
         @Test
         void http로_개발하므로_Secure를_끈다() throws Exception {
-            String sessionCookie = loginSetCookie(port, "JSESSIONID=");
+            String sessionCookie = loginSetCookie(port, "SESSION=");
 
             assertThat(sessionCookie).contains("HttpOnly").contains("SameSite=Lax").doesNotContain("Secure");
         }
