@@ -1,6 +1,7 @@
 package com.dreamapt.geocode;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,12 +9,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.dreamapt.geocode.JusoApiException.Kind;
+import com.dreamapt.security.SecurityConfig;
 
 @WebMvcTest(AdminGeocodeController.class)
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "ADMIN")
 class AdminGeocodeControllerTest {
 
     @Autowired
@@ -26,7 +32,7 @@ class AdminGeocodeControllerTest {
     void 결과_요약을_반환한다() throws Exception {
         given(service.geocode(1000, false)).willReturn(new GeocodeResult(1000, 990, 4, 3, 1, 1, 1, false, 7591));
 
-        mockMvc.perform(post("/api/admin/geocode"))
+        mockMvc.perform(post("/api/admin/geocode").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.attempted").value(1000))
                 .andExpect(jsonPath("$.succeeded").value(990))
@@ -38,21 +44,21 @@ class AdminGeocodeControllerTest {
     void 파라미터를_넘긴다() throws Exception {
         given(service.geocode(50, true)).willReturn(new GeocodeResult(0, 0, 0, 0, 0, 0, 0, false, 0));
 
-        mockMvc.perform(post("/api/admin/geocode").param("limit", "50").param("retryFailed", "true"))
+        mockMvc.perform(post("/api/admin/geocode").with(csrf()).param("limit", "50").param("retryFailed", "true"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void limit이_범위를_벗어나면_400() throws Exception {
-        mockMvc.perform(post("/api/admin/geocode").param("limit", "0")).andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/admin/geocode").param("limit", "2001")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/admin/geocode").with(csrf()).param("limit", "0")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/admin/geocode").with(csrf()).param("limit", "2001")).andExpect(status().isBadRequest());
     }
 
     @Test
     void 키_설정이_없으면_503() throws Exception {
         given(service.geocode(1000, false)).willThrow(new JusoApiException(Kind.MISSING_KEY, "키가 없습니다"));
 
-        mockMvc.perform(post("/api/admin/geocode"))
+        mockMvc.perform(post("/api/admin/geocode").with(csrf()))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.detail").value("키가 없습니다"));
     }
@@ -61,6 +67,6 @@ class AdminGeocodeControllerTest {
     void juso가_키를_거부하면_502() throws Exception {
         given(service.geocode(1000, false)).willThrow(new JusoApiException(Kind.AUTH, "E0001"));
 
-        mockMvc.perform(post("/api/admin/geocode")).andExpect(status().isBadGateway());
+        mockMvc.perform(post("/api/admin/geocode").with(csrf())).andExpect(status().isBadGateway());
     }
 }

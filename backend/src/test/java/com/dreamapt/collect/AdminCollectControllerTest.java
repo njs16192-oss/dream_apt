@@ -1,6 +1,7 @@
 package com.dreamapt.collect;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,13 +12,18 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.dreamapt.collect.batch.CollectTarget;
 import com.dreamapt.collect.batch.CollectTargetRunner;
+import com.dreamapt.security.SecurityConfig;
 
 @WebMvcTest(AdminCollectController.class)
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "ADMIN")
 class AdminCollectControllerTest {
 
     @Autowired
@@ -34,7 +40,7 @@ class AdminCollectControllerTest {
                 .willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 12, 7,
                         List.of(ReconcileResult.MISSING_RATIO_EXCEEDED)));
 
-        mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"))
+        mockMvc.perform(post("/api/admin/collect").with(csrf()).param("sggCd", "11500").param("dealYm", "202609"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fetched").value(252))
                 .andExpect(jsonPath("$.inserted").value(230))
@@ -46,9 +52,9 @@ class AdminCollectControllerTest {
 
     @Test
     void 파라미터_형식이_틀리면_400() throws Exception {
-        mockMvc.perform(post("/api/admin/collect").param("sggCd", "115").param("dealYm", "202609"))
+        mockMvc.perform(post("/api/admin/collect").with(csrf()).param("sggCd", "115").param("dealYm", "202609"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202613"))
+        mockMvc.perform(post("/api/admin/collect").with(csrf()).param("sggCd", "11500").param("dealYm", "202613"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -56,7 +62,7 @@ class AdminCollectControllerTest {
     void 외부_API_오류는_502() throws Exception {
         given(runner.collect(TARGET, null)).willThrow(new TradeApiException("API 오류 응답"));
 
-        mockMvc.perform(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"))
+        mockMvc.perform(post("/api/admin/collect").with(csrf()).param("sggCd", "11500").param("dealYm", "202609"))
                 .andExpect(status().isBadGateway());
     }
 }

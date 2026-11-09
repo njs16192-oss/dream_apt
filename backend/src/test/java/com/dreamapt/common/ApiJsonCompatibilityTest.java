@@ -2,6 +2,7 @@ package com.dreamapt.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -45,6 +47,7 @@ import com.dreamapt.support.TestcontainersConfiguration;
  * 필드 순서·날짜 형식·null 처리가 바뀌면 안 된다. 전체 컨텍스트로 띄워서 springdoc 자동 설정의 영향까지 본다.
  */
 @SpringBootTest
+@WithMockUser(roles = "ADMIN")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class ApiJsonCompatibilityTest {
@@ -92,7 +95,7 @@ class ApiJsonCompatibilityTest {
         given(runner.collect(TARGET, null)).willReturn(new CollectResult("11500", "202609", 252, 120, 230, 10, 12, 7,
                 List.of(ReconcileResult.MISSING_RATIO_EXCEEDED)));
 
-        assertResponse(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"),
+        assertResponse(post("/api/admin/collect").with(csrf()).param("sggCd", "11500").param("dealYm", "202609"),
                 200, "application/json", """
                         {"sggCd":"11500","dealYm":"202609","fetched":252,"complexes":120,"inserted":230,"updated":10,\
                         "unchanged":12,"missing":7,"warnings":["MISSING_RATIO_EXCEEDED"]}""");
@@ -100,7 +103,7 @@ class ApiJsonCompatibilityTest {
 
     @Test
     void 파라미터_검증_실패는_ProblemDetail_400() throws Exception {
-        assertResponse(post("/api/admin/collect").param("sggCd", "115").param("dealYm", "202609"),
+        assertResponse(post("/api/admin/collect").with(csrf()).param("sggCd", "115").param("dealYm", "202609"),
                 400, "application/problem+json", """
                         {"detail":"Validation failure","instance":"/api/admin/collect","status":400,"title":"Bad Request"}""");
     }
@@ -109,7 +112,7 @@ class ApiJsonCompatibilityTest {
     void 외부_API_오류는_ProblemDetail_502() throws Exception {
         given(runner.collect(TARGET, null)).willThrow(new TradeApiException("API 오류 응답"));
 
-        assertResponse(post("/api/admin/collect").param("sggCd", "11500").param("dealYm", "202609"),
+        assertResponse(post("/api/admin/collect").with(csrf()).param("sggCd", "11500").param("dealYm", "202609"),
                 502, "application/problem+json", """
                         {"detail":"API 오류 응답","instance":"/api/admin/collect","status":502,"title":"Bad Gateway"}""");
     }
@@ -119,7 +122,7 @@ class ApiJsonCompatibilityTest {
         given(runningJobs.findRunning(CollectMode.DAILY, null)).willReturn(List.of());
         given(launcher.startAsync(CollectMode.DAILY, LocalDate.of(2026, 10, 25))).willReturn(execution(11L));
 
-        assertResponse(post("/api/admin/collect/jobs").param("mode", "daily").param("baseDate", "2026-10-25"),
+        assertResponse(post("/api/admin/collect/jobs").with(csrf()).param("mode", "daily").param("baseDate", "2026-10-25"),
                 202, "application/json", """
                         {"jobExecutionId":11,"mode":"daily","baseDate":"2026-10-25","status":"STARTED",\
                         "exitCode":"UNKNOWN","exitDescription":"","startTime":"2026-10-25T06:00:01.123",\
@@ -130,7 +133,7 @@ class ApiJsonCompatibilityTest {
     void 실행_중이면_ProblemDetail_409() throws Exception {
         given(runningJobs.findRunning(CollectMode.WEEKLY, null)).willReturn(List.of(execution(5L)));
 
-        assertResponse(post("/api/admin/collect/jobs").param("mode", "weekly"), 409, "application/problem+json", """
+        assertResponse(post("/api/admin/collect/jobs").with(csrf()).param("mode", "weekly"), 409, "application/problem+json", """
                 {"detail":"같은 모드(weekly)로 실행 중: jobExecutionId=5","instance":"/api/admin/collect/jobs",\
                 "status":409,"title":"Conflict"}""");
     }
