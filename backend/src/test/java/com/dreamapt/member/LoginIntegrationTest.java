@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,9 +21,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -34,6 +36,7 @@ import jakarta.servlet.http.Cookie;
 /**
  * 가입 → 로그인 → 내 정보 → 로그아웃을 실제 DB·필터 체인으로 돌린다.
  * CSRF는 테스트용 csrf() 대신 브라우저처럼 XSRF-TOKEN 쿠키를 받아 X-XSRF-TOKEN 헤더로 되돌려 보낸다.
+ * 세션도 Spring Session JDBC가 DB에 두므로 MockHttpSession 대신 브라우저처럼 SESSION 쿠키를 받아 다음 요청에 싣는다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -41,9 +44,13 @@ import jakarta.servlet.http.Cookie;
 class LoginIntegrationTest {
 
     private static final String PASSWORD = "password123";
+    private static final String SESSION_COOKIE = "SESSION";
 
     @Autowired
     MockMvc mockMvc;
+
+    @Autowired
+    SessionRepository<? extends Session> sessionRepository;
 
     String email;
     Cookie xsrf;
@@ -66,34 +73,37 @@ class LoginIntegrationTest {
 
     @Test
     void 로그인하면_세션에_남고_내_정보를_볼_수_있다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-
-        MvcResult login = mockMvc.perform(login(session, email.toUpperCase(), PASSWORD))
+        MvcResult login = mockMvc.perform(login(email.toUpperCase(), PASSWORD))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
                 .andExpect(jsonPath("$.role").value("USER"))
                 .andReturn();
+        Cookie session = sessionCookie(login.getResponse());
 
-        mockMvc.perform(get("/api/me").session(session))
+        mockMvc.perform(get("/api/me").cookie(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
                 .andExpect(jsonPath("$.role").value("USER"));
         // 로그인 응답과 내 정보가 같다
         assertThat(login.getResponse().getContentAsString(StandardCharsets.UTF_8))
-                .isEqualTo(mockMvc.perform(get("/api/me").session(session)).andReturn().getResponse()
+                .isEqualTo(mockMvc.perform(get("/api/me").cookie(session)).andReturn().getResponse()
                         .getContentAsString(StandardCharsets.UTF_8));
     }
 
     @Test
     void 로그인하면_세션_ID와_CSRF_토큰이_바뀐다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        String before = session.getId();
+        // 로그인 전에 세션이 있어야 ID를 바꾼다. 로그인 전에 받은(또는 공격자가 심어 둔) 세션을 DB에 만들어 둔다
+        String before = createSession();
 
-        MockHttpServletResponse response = mockMvc.perform(login(session, email, PASSWORD))
+        MockHttpServletResponse response = mockMvc.perform(login(cookieOf(before), email, PASSWORD))
                 .andExpect(status().isOk())
                 .andReturn().getResponse();
 
-        assertThat(session.getId()).isNotEqualTo(before);
+        String after = sessionIdOf(sessionCookie(response));
+        assertThat(after).isNotEqualTo(before);
+        // 옛 ID로는 더 이상 세션을 찾을 수 없다
+        assertThat(sessionRepository.findById(before)).isNull();
+        assertThat(sessionRepository.findById(after)).isNotNull();
         // 옛 쿠키를 지우는 Set-Cookie(빈 값) 뒤에 새 토큰이 온다. 브라우저에는 마지막 값이 남는다
         assertThat(xsrfCookies(response)).first().extracting(Cookie::getValue).isEqualTo("");
         Cookie renewed = lastXsrfCookie(response);
@@ -102,11 +112,14 @@ class LoginIntegrationTest {
 
     @Test
     void 세션에는_비밀번호_해시가_남지_않는다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        mockMvc.perform(login(session, email, PASSWORD)).andExpect(status().isOk());
+        MockHttpServletResponse response = mockMvc.perform(login(email, PASSWORD))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
 
-        SecurityContext context = (SecurityContext) session
-                .getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        // DB에 직렬화돼 저장된 세션을 다시 읽어 확인한다
+        Session session = sessionRepository.findById(sessionIdOf(sessionCookie(response)));
+        assertThat(session).isNotNull();
+        SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
         LoginMember principal = (LoginMember) context.getAuthentication().getPrincipal();
         assertThat(principal.getEmail()).isEqualTo(email);
         assertThat(principal.getPassword()).isNull();
@@ -116,10 +129,10 @@ class LoginIntegrationTest {
     @Test
     void 없는_이메일과_틀린_비밀번호는_같은_401_응답이다() throws Exception {
         MockHttpServletResponse wrongPassword = mockMvc
-                .perform(login(new MockHttpSession(), email, "wrong-password"))
+                .perform(login(email, "wrong-password"))
                 .andReturn().getResponse();
         MockHttpServletResponse unknownEmail = mockMvc
-                .perform(login(new MockHttpSession(), "nobody-" + UUID.randomUUID() + "@example.com", PASSWORD))
+                .perform(login("nobody-" + UUID.randomUUID() + "@example.com", PASSWORD))
                 .andReturn().getResponse();
 
         assertThat(wrongPassword.getStatus()).isEqualTo(401);
@@ -132,23 +145,25 @@ class LoginIntegrationTest {
 
     @Test
     void 로그인에_실패하면_세션에_로그인이_남지_않는다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
+        Cookie session = cookieOf(createSession());
         mockMvc.perform(login(session, email, "wrong-password")).andExpect(status().isUnauthorized());
 
-        mockMvc.perform(get("/api/me").session(session)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/me").cookie(session)).andExpect(status().isUnauthorized());
     }
 
     @Test
     void 로그아웃하면_세션이_끝난다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
+        MockHttpServletResponse login = mockMvc.perform(login(email, PASSWORD)).andReturn().getResponse();
+        Cookie session = sessionCookie(login);
         // 로그인 직후 다른 GET 없이 바로 POST해도 된다 (로그인 응답의 새 토큰을 쓴다)
-        Cookie afterLogin = lastXsrfCookie(mockMvc.perform(login(session, email, PASSWORD)).andReturn().getResponse());
+        Cookie afterLogin = lastXsrfCookie(login);
 
-        mockMvc.perform(withXsrf(post("/api/auth/logout"), afterLogin).session(session))
+        mockMvc.perform(withXsrf(post("/api/auth/logout"), afterLogin).cookie(session))
                 .andExpect(status().isNoContent());
 
-        assertThat(session.isInvalid()).isTrue();
-        mockMvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
+        assertThat(sessionRepository.findById(sessionIdOf(session))).isNull();
+        // 쿠키를 그대로 들고 있어도(지우는 응답을 무시한 클라이언트 등) 로그인 상태가 아니다
+        mockMvc.perform(get("/api/me").cookie(session)).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -179,22 +194,54 @@ class LoginIntegrationTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
-    private MockHttpServletRequestBuilder login(MockHttpSession session, String email, String password) {
-        return withXsrf(post("/api/auth/login"), xsrf).session(session)
+    private MockHttpServletRequestBuilder login(String email, String password) {
+        return withXsrf(post("/api/auth/login"), xsrf)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(email, password));
     }
 
+    private MockHttpServletRequestBuilder login(Cookie session, String email, String password) {
+        return login(email, password).cookie(session);
+    }
+
     @Test
     void 로그인_전_CSRF_토큰은_로그인_뒤에_쓸_수_없다() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        Cookie afterLogin = lastXsrfCookie(mockMvc.perform(login(session, email, PASSWORD)).andReturn().getResponse());
+        MockHttpServletResponse login = mockMvc.perform(login(email, PASSWORD)).andReturn().getResponse();
+        Cookie afterLogin = lastXsrfCookie(login);
 
         // 브라우저에는 새 쿠키만 남는다. 옛 토큰을 아는 쪽(로그인 전에 심어 둔 공격자 등)이 헤더에 넣으면 맞지 않는다
-        mockMvc.perform(post("/api/auth/logout").session(session)
-                .cookie(afterLogin)
+        mockMvc.perform(post("/api/auth/logout")
+                .cookie(sessionCookie(login), afterLogin)
                 .header("X-XSRF-TOKEN", xsrf.getValue()))
                 .andExpect(status().isForbidden());
+    }
+
+    /** 세션을 DB에 만들고 ID를 돌려준다 */
+    private String createSession() {
+        return save(sessionRepository);
+    }
+
+    private static <S extends Session> String save(SessionRepository<S> repository) {
+        S session = repository.createSession();
+        repository.save(session);
+        return session.getId();
+    }
+
+    /** SESSION 쿠키 값은 세션 ID를 Base64로 인코딩한 것이다 (DefaultCookieSerializer 기본값) */
+    private static Cookie cookieOf(String sessionId) {
+        return new Cookie(SESSION_COOKIE,
+                Base64.getEncoder().encodeToString(sessionId.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static String sessionIdOf(Cookie sessionCookie) {
+        return new String(Base64.getDecoder().decode(sessionCookie.getValue()), StandardCharsets.UTF_8);
+    }
+
+    private static Cookie sessionCookie(MockHttpServletResponse response) {
+        Cookie cookie = response.getCookie(SESSION_COOKIE);
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getValue()).isNotBlank();
+        return cookie;
     }
 
     private static List<Cookie> xsrfCookies(MockHttpServletResponse response) {
