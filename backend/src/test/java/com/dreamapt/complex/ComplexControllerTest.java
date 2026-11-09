@@ -21,6 +21,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
@@ -30,8 +31,10 @@ import com.dreamapt.common.MonthlySeries;
 import com.dreamapt.common.NotFoundException;
 import com.dreamapt.common.PageResponse;
 import com.dreamapt.common.ApiExceptionHandler;
+import com.dreamapt.security.SecurityConfig;
 
 @WebMvcTest({ ComplexController.class, ApiExceptionHandler.class })
+@Import(SecurityConfig.class)
 class ComplexControllerTest {
 
     @Autowired

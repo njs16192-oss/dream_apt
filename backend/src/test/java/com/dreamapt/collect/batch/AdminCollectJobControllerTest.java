@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,11 +22,17 @@ import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.test.MetaDataInstanceFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.dreamapt.security.SecurityConfig;
+
 @WebMvcTest(AdminCollectJobController.class)
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "ADMIN")
 class AdminCollectJobControllerTest {
 
     @Autowired
@@ -49,7 +56,7 @@ class AdminCollectJobControllerTest {
         given(launcher.startAsync(CollectMode.DAILY, LocalDate.of(2026, 10, 25)))
                 .willReturn(execution(11L, "daily", BatchStatus.STARTING));
 
-        mockMvc.perform(post("/api/admin/collect/jobs").param("mode", "daily").param("baseDate", "2026-10-25"))
+        mockMvc.perform(post("/api/admin/collect/jobs").with(csrf()).param("mode", "daily").param("baseDate", "2026-10-25"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.jobExecutionId").value(11))
                 .andExpect(jsonPath("$.mode").value("daily"))
@@ -61,7 +68,7 @@ class AdminCollectJobControllerTest {
         given(runningJobs.findRunning(CollectMode.BACKFILL, null))
                 .willReturn(List.of(execution(5L, "backfill", BatchStatus.STARTED)));
 
-        mockMvc.perform(post("/api/admin/collect/jobs").param("mode", "backfill"))
+        mockMvc.perform(post("/api/admin/collect/jobs").with(csrf()).param("mode", "backfill"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("같은 모드(backfill)로 실행 중: jobExecutionId=5"));
 
@@ -70,7 +77,7 @@ class AdminCollectJobControllerTest {
 
     @Test
     void 모드가_틀리면_400() throws Exception {
-        mockMvc.perform(post("/api/admin/collect/jobs").param("mode", "monthly"))
+        mockMvc.perform(post("/api/admin/collect/jobs").with(csrf()).param("mode", "monthly"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -104,7 +111,7 @@ class AdminCollectJobControllerTest {
         given(runningJobs.isStale(stale)).willReturn(true);
         given(jobOperator.recover(stale)).willReturn(recovered);
 
-        mockMvc.perform(post("/api/admin/collect/jobs/5/recover"))
+        mockMvc.perform(post("/api/admin/collect/jobs/5/recover").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("FAILED"));
     }
@@ -115,7 +122,7 @@ class AdminCollectJobControllerTest {
         given(jobRepository.getJobExecution(5L)).willReturn(running);
         given(runningJobs.isStale(running)).willReturn(false);
 
-        mockMvc.perform(post("/api/admin/collect/jobs/5/recover"))
+        mockMvc.perform(post("/api/admin/collect/jobs/5/recover").with(csrf()))
                 .andExpect(status().isConflict());
 
         verify(jobOperator, never()).recover(any());

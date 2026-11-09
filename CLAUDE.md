@@ -21,6 +21,9 @@ docs/troubleshooting.md
 - DB: `docker compose -f infra/docker-compose.yml up -d` (db/user/pw 모두 dreamapt, 5432)
 - Backend: `cd backend && ./gradlew bootRun` (8080). 활성 프로필을 안 주면 `local` 프로필 (관리 API 문서 켜짐)
   - API 문서: `http://localhost:8080/swagger-ui.html` (public 그룹은 운영에서도 공개, admin 그룹은 `API_DOCS_ADMIN_ENABLED=true`일 때만)
+  - 인증 (docs/adr/011-auth-watchlist-alerts.md): 세션 쿠키 + CSRF. GET 이외 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보낸다
+  - 관리 API(`/api/admin/**`)는 ADMIN만. 관리자는 가입(`POST /api/auth/signup`) 뒤 psql로 지정하고 **다시 로그인**한다 (권한은 로그인 때 세션에 담긴다)
+    `docker exec -it dreamapt-postgres psql -U dreamapt -c "UPDATE member SET role = 'ADMIN' WHERE email = '<이메일>'"`
 - 수집 배치 (docs/adr/006-batch-execution.md): `cd backend && ./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`
   - mode: daily / weekly / backfill, 선택 `--baseDate=YYYY-MM-DD` (기본: 서울 기준 오늘)
   - 웹 앱에서는 Job이 자동 실행되지 않음. 관리 API `POST /api/admin/collect/jobs?mode=daily`로도 실행 가능
