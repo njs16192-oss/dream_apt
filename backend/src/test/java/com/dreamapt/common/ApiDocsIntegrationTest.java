@@ -70,7 +70,7 @@ class ApiDocsIntegrationTest {
             mockMvc.perform(get("/v3/api-docs/admin")).andExpect(status().isNotFound());
             mockMvc.perform(get("/v3/api-docs/swagger-config"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.urls[*].name").value(org.hamcrest.Matchers.contains("조회 API")));
+                    .andExpect(jsonPath("$.urls[*].name").value(org.hamcrest.Matchers.contains("공개 API")));
         }
 
         @Test

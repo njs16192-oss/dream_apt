@@ -139,3 +139,17 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 | 이메일 인증·비밀번호 찾기·이메일 알림 | 메일 발송을 붙일 때 |
 | 웹 푸시 | 8단계 배포 뒤 |
 | 회원 탈퇴 | 화면·API는 만들지 않는다. 관련 테이블은 회원 삭제 시 CASCADE로 준비만 해 둔다 |
+
+## 5. 구현 기록
+
+### 인증 (PR 3b)
+
+- **CSRF는 `csrf.spa()`(Security 7.0+)로 켠다.** `XSRF-TOKEN` 쿠키(JS가 읽어야 하므로 HttpOnly 아님)를 요청마다 내려주고, `X-XSRF-TOKEN` 헤더 값과 비교한다. 헤더 없이 쿠키만 오면(다른 사이트의 폼 전송) 403이다
+- **로그인은 `formLogin` 대신 JSON 컨트롤러(`POST /api/auth/login`)다.** API 문서와 `schema.d.ts`에 들어가게 하려는 것이다. 대신 필터가 해 주던 일을 직접 한다: 인증 → 세션 ID 변경(세션 고정 방지) → CSRF 토큰 교체 → SecurityContext를 세션에 저장 (Security 6부터 자동 저장 안 됨)
+- **CSRF 토큰은 로그인 응답에서 바로 새로 준다.** `CsrfAuthenticationStrategy` 기본값은 옛 쿠키를 지우기만 하고 새 토큰은 다음 요청에서 내려준다. 그러면 로그인 직후 GET 없이 보낸 POST가 403이 된다. 토큰을 바로 꺼내도록 바꿨다
+- **세션에는 작은 principal(`LoginMember`: id, email, role)만 둔다.** 비밀번호 해시는 인증 직후 지운다. PR 4에서 세션이 DB에 직렬화되므로 엔티티를 넣지 않는다
+- **권한은 다음 로그인부터 적용된다.** 권한을 세션에 담기 때문에, psql로 `role`을 바꿔도 이미 로그인한 세션은 그대로다
+- **규칙에 없는 경로는 `denyAll`이다.** 새 API를 만들고 규칙을 빼먹으면 열리는 대신 막힌다. 대가로 없는 경로도 404가 아니라 401(비로그인)·403(로그인)이다
+- **`/error`는 허용한다.** 컨트롤러 밖 오류는 `/error`로 다시 들어오는데, 막으면 원래 상태 코드 대신 401이 나간다
+- **401·403은 필터에서 `SecurityProblemHandler`가 ProblemDetail(`application/problem+json`)로 쓴다.** 컨트롤러 밖이라 `ApiExceptionHandler`가 받지 못한다. 컨트롤러와 같은 Jackson 설정과 ProblemDetail mixin을 쓴다
+- **세션 만료**는 이 PR에서는 서블릿 기본값(30분)이다. 7일과 DB 저장은 PR 4에서 함께 적용한다

@@ -25,10 +25,10 @@ import io.swagger.v3.oas.models.media.Schema;
 /**
  * API 문서 (springdoc). Swagger UI: /swagger-ui.html
  * <ul>
- * <li>public: 조회 API. 운영에서도 공개한다 (포트폴리오에서 배포 주소로 직접 호출해 볼 수 있게)</li>
+ * <li>public: 조회·회원·내 정보 API. 운영에서도 공개한다 (포트폴리오에서 배포 주소로 직접 호출해 볼 수 있게)</li>
  * <li>admin: 관리 API. dreamapt.docs.admin-enabled = true일 때만 만든다 (로컬 프로필)</li>
  * </ul>
- * 문서에서 숨기는 것은 보안이 아니다. 관리 API 엔드포인트 자체는 인증(5단계)이나 배포 시 외부 노출 차단으로 보호한다.
+ * 문서에서 숨기는 것은 보안이 아니다. 관리 API 엔드포인트 자체는 SecurityConfig가 ADMIN만 허용한다.
  */
 @Configuration(proxyBeanMethods = false)
 public class ApiDocsConfig {
@@ -61,7 +61,7 @@ public class ApiDocsConfig {
     GroupedOpenApi publicApi() {
         return GroupedOpenApi.builder()
                 .group("public")
-                .displayName("조회 API")
+                .displayName("공개 API")
                 .pathsToMatch("/api/**")
                 .pathsToExclude(ADMIN_PATHS)
                 .build();

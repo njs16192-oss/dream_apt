@@ -15,9 +15,49 @@ export interface paths {
         put?: never;
         /**
          * 회원 가입
-         * @description 이메일은 소문자로 저장한다. 이미 가입된 이메일이면 409
+         * @description 이메일은 소문자로 저장한다. 이미 가입된 이메일이면 409. 가입만 하고 로그인하지는 않는다
          */
         post: operations["signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 로그아웃
+         * @description 세션을 끝내고 CSRF 토큰을 지운다. 로그인하지 않았어도 204
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 로그인
+         * @description 성공하면 세션 ID와 CSRF 토큰을 새로 발급한다. 실패하면 401 (이유를 나누지 않는다)
+         */
+        post: operations["login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -72,6 +112,26 @@ export interface paths {
             cookie?: never;
         };
         get: operations["ping"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 내 정보
+         * @description 로그인할 때의 값이다. 권한(role)을 바꾸면 다시 로그인해야 반영된다
+         */
+        get: operations["me"];
         put?: never;
         post?: never;
         delete?: never;
@@ -193,6 +253,19 @@ export interface components {
             /** Format: int64 */
             id: number;
             email: string;
+        };
+        LoginRequest: {
+            /** @example user@example.com */
+            email: string;
+            /** @example password123 */
+            password: string;
+        };
+        MeResponse: {
+            /** Format: int64 */
+            id: number;
+            email: string;
+            /** @enum {string} */
+            role: "USER" | "ADMIN";
         };
         /** @description 시군구 */
         RegionItem: {
@@ -663,6 +736,48 @@ export interface operations {
             };
         };
     };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: never;
@@ -736,6 +851,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MeResponse"];
                 };
             };
         };
