@@ -1,5 +1,7 @@
 package com.dreamapt.watchlist;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,11 @@ public class WatchlistService {
         
         watchlistRepository.add(memberId, aptSeq);
         
+    }
+
+    @Transactional(readOnly = true)
+    public List<WatchlistItem> findAll(long memberId) {
+        return watchlistRepository.findAll(memberId);
     }
 
     @Transactional
