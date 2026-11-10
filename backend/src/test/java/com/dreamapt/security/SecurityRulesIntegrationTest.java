@@ -77,6 +77,10 @@ class SecurityRulesIntegrationTest {
             "POST,   /api/auth/logout,              pass, pass, pass",
             // 내 정보는 로그인
             "GET,    /api/me,                       401,  pass, pass",
+            // 관심단지도 로그인 (/api/me/**)
+            "GET,    /api/me/watchlist,             401,  pass, pass",
+            "PUT,    /api/me/watchlist/11710-1,     401,  pass, pass",
+            "DELETE, /api/me/watchlist/11710-1,     401,  pass, pass",
             // 관리 API는 ADMIN만
             "POST,   /api/admin/geocode,            401,  403,  pass",
             "POST,   /api/admin/collect,            401,  403,  pass",
