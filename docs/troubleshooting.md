@@ -25,3 +25,8 @@
   2. 잘못 기록된 행 되돌리기. 먼저 로그의 경고가 모두 E0007인지 확인한 뒤 실행한다:
      `UPDATE apt_complex SET geocode_attempted_at = NULL, geocode_error = NULL WHERE geocode_error = 'API_ERROR';`
   3. `remaining`이 0이 될 때까지 다시 호출한다
+
+## 배치 CLI가 HttpSecurity 빈 없음으로 시작하지 못함
+- 증상: `./gradlew bootRun --args='--spring.profiles.active=batch --mode=daily'`가 `APPLICATION FAILED TO START`로 끝남. `Parameter 0 of method securityFilterChain in com.dreamapt.security.SecurityConfig required a bean of type '...HttpSecurity'` (2026-11-10 발견, #26 이후 계속)
+- 원인: batch 프로필은 `web-application-type: none`이라 웹 앱에서만 만들어지는 `HttpSecurity`가 없다. 그런데 `SecurityConfig`가 로드되고, 그 안의 `SessionAuthenticationStrategy`에 기대는 `AuthController`도 로드됐다. 다른 통합 테스트는 모두 웹 컨텍스트라 CI가 잡지 못했다
+- 해결: 두 클래스에 `@ConditionalOnWebApplication`을 붙였다. `BatchApplicationContextIntegrationTest`가 웹 서버 없는 컨텍스트로 앱을 띄워 회귀를 막는다. 웹에서만 필요한 빈에 기대는 클래스를 새로 만들면 같은 조건을 붙인다
