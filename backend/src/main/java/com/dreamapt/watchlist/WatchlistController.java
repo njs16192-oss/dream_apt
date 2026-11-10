@@ -34,7 +34,7 @@ public class WatchlistController {
 
     @Operation(summary = "관심단지 목록", description = "최근에 추가한 순서. 최대 " + WatchlistService.MAX_WATCHLIST + "개")
     @GetMapping
-    public List<WatchlistItem> list(@AuthenticationPrincipal LoginMember member) {
+    public List<WatchlistItem> watchlist(@AuthenticationPrincipal LoginMember member) {
         return service.findAll(member.getId());
     }
 
@@ -43,7 +43,7 @@ public class WatchlistController {
                     + "없는 단지는 404, " + WatchlistService.MAX_WATCHLIST + "개가 이미 차 있으면 409")
     @PutMapping("/{aptSeq}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void add(@AuthenticationPrincipal LoginMember member,
+    public void addToWatchlist(@AuthenticationPrincipal LoginMember member,
             @Parameter(description = "단지 ID", example = "11710-8865") @PathVariable String aptSeq) {
         service.add(member.getId(), aptSeq);
     }
@@ -51,7 +51,7 @@ public class WatchlistController {
     @Operation(summary = "관심단지 해제", description = "목록에 없어도 204")
     @DeleteMapping("/{aptSeq}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remove(@AuthenticationPrincipal LoginMember member,
+    public void removeFromWatchlist(@AuthenticationPrincipal LoginMember member,
             @Parameter(description = "단지 ID", example = "11710-8865") @PathVariable String aptSeq) {
         service.remove(member.getId(), aptSeq);
     }
