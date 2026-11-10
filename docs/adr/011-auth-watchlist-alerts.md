@@ -163,6 +163,7 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 - **세션에는 작은 principal(`LoginMember`: id, email, role)만 둔다.** 비밀번호 해시는 인증 직후 지운다. PR 4에서 세션이 DB에 직렬화되므로 엔티티를 넣지 않는다
 - **권한은 다음 로그인부터 적용된다.** 권한을 세션에 담기 때문에, psql로 `role`을 바꿔도 이미 로그인한 세션은 그대로다
 - **규칙에 없는 경로는 `denyAll`이다.** 새 API를 만들고 규칙을 빼먹으면 열리는 대신 막힌다. 대가로 없는 경로도 404가 아니라 401(비로그인)·403(로그인)이다
+- **보안 설정(`SecurityConfig`)과 `AuthController`는 웹 앱에서만 로드한다** (`@ConditionalOnWebApplication`). 배치 CLI는 웹 서버 없이 떠서 `HttpSecurity`가 없다. 처음엔 이 조건이 없어 배치 CLI가 시작하지 못했다 (docs/troubleshooting.md)
 - **`/error`는 허용한다.** 컨트롤러 밖 오류는 `/error`로 다시 들어오는데, 막으면 원래 상태 코드 대신 401이 나간다
 - **401·403은 필터에서 `SecurityProblemHandler`가 ProblemDetail(`application/problem+json`)로 쓴다.** 컨트롤러 밖이라 `ApiExceptionHandler`가 받지 못한다. 컨트롤러와 같은 Jackson 설정과 ProblemDetail mixin을 쓴다
 - **세션 만료**는 이 PR에서는 서블릿 기본값(30분)이다. 7일과 DB 저장은 PR 4에서 함께 적용한다

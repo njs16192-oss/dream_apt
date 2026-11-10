@@ -1,5 +1,6 @@
 package com.dreamapt.member;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 
 @Tag(name = "회원", description = "회원 가입·로그인. 로그인은 세션 쿠키로 유지된다. "
         + "GET 이외 요청은 XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내야 한다")
+// SessionAuthenticationStrategy 등이 웹 앱에서만 로드되는 SecurityConfig에 있다. 배치 CLI에서는 이 컨트롤러도 뺀다
+@ConditionalOnWebApplication
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

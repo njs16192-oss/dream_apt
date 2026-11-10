@@ -2,6 +2,7 @@ package com.dreamapt.security;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,7 +31,11 @@ import tools.jackson.databind.json.JsonMapper;
  * </ul>
  * DB 쪽 빈(MemberRepository 등)에 기대지 않는다. 로그인 인증(UserDetailsService, AuthenticationManager)은
  * member.LoginConfig에 있다. 그래서 @WebMvcTest 슬라이스도 @Import(SecurityConfig.class)로 같은 규칙을 쓸 수 있다.
+ * <p>
+ * 웹 앱에서만 로드한다. 배치 CLI(batch 프로필, web-application-type: none)에는 HttpSecurity 빈이 없어서
+ * 이 설정이 로드되면 앱이 시작하지 못한다 (docs/troubleshooting.md).
  */
+@ConditionalOnWebApplication
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
