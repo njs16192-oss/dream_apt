@@ -31,7 +31,7 @@ public class WatchlistRepository {
     private static final String EXISTS = """
             SELECT EXISTS (
                 SELECT 1 FROM watchlist
-                WHERE member_id = :memberId AND apt_seq = aptSeq
+                WHERE member_id = :memberId AND apt_seq = :aptSeq
             )
             """;
 

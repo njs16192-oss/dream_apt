@@ -16,6 +16,8 @@ public class TradeRows {
     }
 
     public void clear() {
+        // watchlist → apt_complex FK에는 CASCADE가 없다. 먼저 지워야 단지를 지울 수 있다
+        jdbc.update("DELETE FROM watchlist");
         jdbc.update("DELETE FROM apt_trade");
         jdbc.update("DELETE FROM apt_complex");
     }
