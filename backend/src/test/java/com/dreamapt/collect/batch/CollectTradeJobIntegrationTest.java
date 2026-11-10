@@ -1,10 +1,13 @@
 package com.dreamapt.collect.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,8 +34,10 @@ import org.springframework.batch.infrastructure.item.ExecutionContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import com.dreamapt.collect.ApiRequestThrottle;
 import com.dreamapt.collect.FetchedTrades;
@@ -42,6 +47,7 @@ import com.dreamapt.collect.TradeApiException.Kind;
 import com.dreamapt.geocode.ComplexGeocodeService;
 import com.dreamapt.geocode.GeocodeResult;
 import com.dreamapt.geocode.JusoApiException;
+import com.dreamapt.newhigh.NewHighEventRepository;
 import com.dreamapt.support.TestcontainersConfiguration;
 
 /**
@@ -85,6 +91,10 @@ class CollectTradeJobIntegrationTest {
     @MockitoBean
     ComplexGeocodeService geocodeService;
 
+    // 신고가 판단 step은 실제 NewHighDetectService(@Transactional)를 거친다. 저장소만 가짜 결과를 돌려준다
+    @MockitoSpyBean
+    NewHighEventRepository newHighEventRepository;
+
     /** 구×월(예: "11500×202609")별 실패. 없으면 빈 응답으로 성공 */
     private final Map<String, RuntimeException> failures = new HashMap<>();
 
@@ -106,6 +116,41 @@ class CollectTradeJobIntegrationTest {
         given(geocodeService.ready()).willReturn(true);
         given(geocodeService.geocode(anyInt(), anyBoolean()))
                 .willReturn(new GeocodeResult(3, 2, 1, 0, 0, 0, 0, false, 0));
+        doReturn(2).when(newHighEventRepository).recordSince(any());
+    }
+
+    @Test
+    void 지오코딩_뒤_신고가_판단은_기준일_3개월_전부터_한_번_돌고_결과를_남긴다() {
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+        verify(newHighEventRepository, times(1)).recordSince(BASE_DATE.minusMonths(3));
+        assertThat(summary(execution, CollectBatchConfig.DETECT_NEW_HIGHS_STEP))
+                .containsEntry("summary.from", "2026-07-25")
+                .containsEntry("summary.recorded", 2);
+    }
+
+    @Test
+    void 신고가_판단이_실패해도_수집_결과와_종료_코드는_그대로다() {
+        doThrow(new DataAccessResourceFailureException("DB 연결 끊김")).when(newHighEventRepository).recordSince(any());
+
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(CollectJobExitCodes.of(execution)).isZero();
+        assertThat(summary(execution, CollectBatchConfig.DETECT_NEW_HIGHS_STEP))
+                .containsEntry("summary.error", "DB 연결 끊김");
+    }
+
+    @Test
+    void 수집이_일부_실패하고_신고가_판단도_실패하면_종료_코드는_3이다() {
+        failures.put("11500×202609", new TradeApiException("원본 불완전"));
+        doThrow(new DataAccessResourceFailureException("DB 연결 끊김")).when(newHighEventRepository).recordSince(any());
+
+        JobExecution execution = run(CollectMode.DAILY);
+
+        assertThat(execution.getExitStatus().getExitCode()).isEqualTo(CollectExitStatus.COMPLETED_WITH_FAILURES);
+        assertThat(CollectJobExitCodes.of(execution)).isEqualTo(3);
     }
 
     @Test
@@ -201,8 +246,9 @@ class CollectTradeJobIntegrationTest {
         assertThat(CollectJobExitCodes.of(execution)).isEqualTo(2);
         assertThat(count("true")).isEqualTo(5);
         assertThat(count("status = 'FAILED'")).isEqualTo(1);
-        // 수집 step이 FAILED면 지오코딩 step까지 가지 않는다
+        // 수집 step이 FAILED면 지오코딩·신고가 판단 step까지 가지 않는다
         verify(geocodeService, never()).geocode(anyInt(), anyBoolean());
+        verify(newHighEventRepository, never()).recordSince(any());
     }
 
     @Test

@@ -111,7 +111,20 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 
 **SQL 방식**
 
-윈도 함수(`MAX() OVER (… RANGE … PRECEDING)`)와 LATERAL 서브쿼리 중 하나로 구현한다. 신고가 판단 PR의 계획에서 두 방식을 비교해 정하고, 결과를 이 ADR에 덧붙인다.
+**LATERAL 서브쿼리로 구현한다** (PR 6에서 비교해 정함). 판단 범위의 거래 T마다, 같은 그룹에서 계약일이 더 이른 비일괄 거래의 `max(deal_amount)`를 LATERAL로 구한다. T의 금액이 그보다 크면 `INSERT … SELECT … ON CONFLICT DO NOTHING`으로 넣는다.
+
+로컬 DB(거래 374,692건, 최근 3개월 유효 거래 8,867건, 기준 2026-11-10)에서 두 쿼리를 `EXPLAIN ANALYZE`로 비교했다. 둘 다 같은 2,170건을 찾았다.
+
+| | **LATERAL** (선택) | 윈도 함수 `MAX() OVER (PARTITION BY apt_seq, area_group ORDER BY deal_date RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW EXCLUDE GROUP)` |
+|---|---|---|
+| 실행 시간 | 2.38초 | 2.11초 |
+| 읽는 범위 | 최근 거래마다 그 단지 이력만 인덱스(`apt_seq, deal_date`)로 읽는다 | 후보 단지의 전체 이력(27.8만 행)에 윈도를 계산한 뒤 바깥에서 최근 3개월만 남긴다. 정렬 두 번이 디스크로 넘쳤다(12MB, 18MB) |
+| 데이터가 늘면 | 판단 범위(3개월)와 단지 이력 길이에 비례 | 전체 거래 수에 비례 (매달 커진다) |
+| 뷰와의 관계 | `p.apt_seq = t.apt_seq` 조건이 `valid_apt_trade` 안의 `is_bulk` 윈도(PARTITION에 `apt_seq`)까지 내려간다 | 후보 단지를 `apt_seq IN (…)`으로 좁혀도 세미조인이라 뷰 안으로 내려가지 않는다. `is_bulk`를 전체 거래에 계산한다 |
+| 규칙과의 대응 | "더 이른 계약일(`p.deal_date < t.deal_date`)의 최고가보다 크면"이 그대로 SQL이 된다 | 같은 날 제외를 `EXCLUDE GROUP` 프레임으로 표현한다. 프레임 문법을 알아야 읽힌다 |
+| 이전 거래가 없을 때 | `max()`가 null → `>` 비교가 거짓 → 자동으로 제외 | 빈 프레임 → null, 같다 |
+
+지금은 속도가 비슷하다. 그래도 LATERAL은 비용이 판단 범위에 비례하고, 규칙을 글자 그대로 옮긴 SQL이다. 관심단지 목록(PR 5)도 같은 패턴(`CROSS JOIN LATERAL` + `max`)을 쓴다. 판단 범위를 크게 늘리거나 전체 이력을 다시 계산해야 할 때는 윈도 방식이 유리해질 수 있다. 그때 다시 비교한다.
 
 ### ⑥ 알림 채널: 화면 안 알림
 
@@ -158,3 +171,10 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 - **브라우저를 닫으면 로그아웃한다.** 공용 PC 보안을 위해 세션 쿠키에 유효기간(max-age)을 주지 않는다. 서버 세션은 마지막 요청 후 7일 뒤 정리된다
 - **세션 테이블은 Flyway(V12)로 만든다.** Spring Session의 schema-postgresql.sql을 그대로 옮겼고, 자동 생성(initialize-schema)은 never로 끈다
 - **세션 쿠키 이름이 JSESSIONID에서 SESSION으로 바뀐다.** Spring Session이 서블릿 세션을 대신하기 때문이다
+### 신고가 판단 (PR 6)
+- **`new_high_event`(V14)에는 거래 id, 이전 최고가, `detected_at`만 둔다.** 단지·면적·금액은 거래에서 얻는다. 보여줄 때 어차피 `valid_apt_trade`와 다시 조인하기 때문이다. 거래는 삭제하지 않으므로 FK에 CASCADE를 두지 않는다
+- **판단 범위는 계약일 `baseDate − 3개월` 이후(그날 포함)다.** baseDate는 Job 파라미터다(없으면 서울 기준 오늘). 범위 밖의 거래도 이전 최고가의 기준으로는 쓴다
+- **수집 step이 FAILED(한도 초과 등)면 이 step은 돌지 않는다.** 다음 실행이 같은 3개월을 다시 보므로 빠지는 거래는 없다
+- **판단이 실패해도 tasklet이 예외를 잡아 COMPLETED로 끝낸다** (지오코딩 step과 같다). step은 `ResourcelessTransactionManager`로 감싸고, 트랜잭션은 `NewHighDetectService.detect()`의 `@Transactional`이 연다. step을 기본 트랜잭션 매니저로 감싸면 서비스 트랜잭션이 step 트랜잭션에 합류한다. 그러면 서비스 예외가 step 트랜잭션을 롤백 전용으로 만들어, 예외를 잡아도 step 커밋이 실패하고 Job이 FAILED(종료 코드 2)가 된다 (테스트로 확인)
+- **PR 7 연결**: `detect()`의 트랜잭션에 알림 생성이 들어간다. `INSERT … ON CONFLICT DO NOTHING RETURNING`은 실제로 들어간 행만 돌려준다. 그래서 판단 INSERT를 `WITH inserted AS (… RETURNING id, trade_id)`로 감싸면, 이번 실행에서 새로 기록된 신고가에만 알림을 만들 수 있다. 이를 위해 판단과 기록을 한 문장으로 둔다
+- 로컬 DB에서 처음 돌리면 최근 3개월 신고가가 한꺼번에 기록된다(2026-11 기준 약 2,170건). 알림은 PR 7부터라 이 백로그로 알림이 나가지는 않는다
