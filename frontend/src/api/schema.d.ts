@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+    "/api/me/watchlist/{aptSeq}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 관심단지 추가
+         * @description 이미 있으면 아무것도 바꾸지 않고 204 (여러 번 보내도 결과가 같다). 없는 단지는 404, 50개가 이미 차 있으면 409
+         */
+        put: operations["addToWatchlist"];
+        post?: never;
+        /**
+         * 관심단지 해제
+         * @description 목록에 없어도 204
+         */
+        delete: operations["removeFromWatchlist"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/signup": {
         parameters: {
             query?: never;
@@ -132,6 +156,26 @@ export interface paths {
          * @description 로그인할 때의 값이다. 권한(role)을 바꾸면 다시 로그인해야 반영된다
          */
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관심단지 목록
+         * @description 최근에 추가한 순서. 최대 50개
+         */
+        get: operations["watchlist"];
         put?: never;
         post?: never;
         delete?: never;
@@ -336,6 +380,40 @@ export interface components {
             bulkCount: number;
             /** @description 집계 중인 달(기준일이 속한 달과 그 전 달). 신고(계약 후 30일 안)·해제가 더 반영되어 값이 바뀔 수 있다. */
             provisional: boolean;
+        };
+        /** @description 관심단지 */
+        WatchlistItem: {
+            /**
+             * @description 단지 ID
+             * @example 11710-8865
+             */
+            aptSeq: string;
+            /**
+             * @description 단지명
+             * @example 헬리오시티
+             */
+            name: string;
+            /**
+             * @description 시군구 코드 (5자리)
+             * @example 11710
+             */
+            sggCd: string;
+            /**
+             * @description 시군구 이름
+             * @example 송파구
+             */
+            sggName: string;
+            /**
+             * Format: date
+             * @description 가장 최근 유효 거래의 계약일. 일괄 거래 제외. 거래가 없으면 null
+             * @example 2026-10-12
+             */
+            lastDealDate: string | null;
+            /**
+             * Format: date-time
+             * @description 관심단지에 추가한 시각
+             */
+            addedAt: string;
         };
         /** @description 단지 검색 결과 */
         ComplexSearchItem: {
@@ -712,6 +790,54 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    addToWatchlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description 단지 ID
+                 * @example 11710-8865
+                 */
+                aptSeq: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removeFromWatchlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description 단지 ID
+                 * @example 11710-8865
+                 */
+                aptSeq: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     signup: {
         parameters: {
             query?: never;
@@ -871,6 +997,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    watchlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WatchlistItem"][];
                 };
             };
         };
