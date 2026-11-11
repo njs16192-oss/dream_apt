@@ -22,6 +22,7 @@ public class NewHighEventRepository {
     // notified: RETURNING은 실제로 들어간 행만 돌려준다. 그래서 이번 실행에서 새로 기록된 신고가에만 알림을 만든다
     // - WITH 안의 문장들은 같은 스냅샷을 본다. new_high_event 테이블을 다시 읽으면 방금 넣은 행이 안 보이므로 inserted의 출력을 쓴다
     // - 알림 FK(new_high_event_id) 검사는 문장 끝에 하므로, 같은 문장에서 넣은 기록을 가리켜도 통과한다
+    // - ON CONFLICT가 필요 없다: inserted는 모두 새 기록이고, watchlist PK (member_id, apt_seq)라 한 기록에 같은 회원이 두 번 오지 않는다
     private static final String RECORD_SINCE = """
             WITH inserted AS (
                 INSERT INTO new_high_event (trade_id, previous_max_amount, detected_at)
@@ -46,7 +47,6 @@ public class NewHighEventRepository {
                 FROM inserted i
                 JOIN apt_trade t ON t.id = i.trade_id
                 JOIN watchlist w ON w.apt_seq = t.apt_seq
-                ON CONFLICT (member_id, new_high_event_id) DO NOTHING
                 RETURNING 1
             )
             SELECT (SELECT count(*) FROM inserted) AS recorded,

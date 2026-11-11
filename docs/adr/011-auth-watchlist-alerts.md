@@ -179,3 +179,12 @@ step은 매번 최근 3개월을 다시 판단한다. 그래서 이전 최고가
 - **판단이 실패해도 tasklet이 예외를 잡아 COMPLETED로 끝낸다** (지오코딩 step과 같다). step은 `ResourcelessTransactionManager`로 감싸고, 트랜잭션은 `NewHighDetectService.detect()`의 `@Transactional`이 연다. step을 기본 트랜잭션 매니저로 감싸면 서비스 트랜잭션이 step 트랜잭션에 합류한다. 그러면 서비스 예외가 step 트랜잭션을 롤백 전용으로 만들어, 예외를 잡아도 step 커밋이 실패하고 Job이 FAILED(종료 코드 2)가 된다 (테스트로 확인)
 - **PR 7 연결**: `detect()`의 트랜잭션에 알림 생성이 들어간다. `INSERT … ON CONFLICT DO NOTHING RETURNING`은 실제로 들어간 행만 돌려준다. 그래서 판단 INSERT를 `WITH inserted AS (… RETURNING id, trade_id)`로 감싸면, 이번 실행에서 새로 기록된 신고가에만 알림을 만들 수 있다. 이를 위해 판단과 기록을 한 문장으로 둔다
 - 로컬 DB에서 처음 돌리면 최근 3개월 신고가가 한꺼번에 기록된다(2026-11 기준 약 2,170건). 알림은 PR 7부터라 이 백로그로 알림이 나가지는 않는다
+
+### 알림 (PR 7)
+- **알림(V15 `notification`)은 신고가 기록과 같은 문장에서 만든다.** 판단 INSERT를 `WITH inserted AS (… ON CONFLICT DO NOTHING RETURNING id, trade_id)`로 감싸고, 그 출력과 `watchlist`를 조인해 알림을 넣는다. `RETURNING`은 실제로 들어간 행만 돌려주므로 이번 실행에서 새로 기록된 신고가에만 알린다. 그래서 다시 돌려도 알림이 늘지 않고, PR 7 이전에 쌓인 기록이나 기록된 뒤 관심단지에 추가한 회원에게도 알림이 가지 않는다
+- **WITH 안의 문장들은 같은 스냅샷을 본다.** 두 번째 INSERT에서 `new_high_event` 테이블을 다시 읽으면 방금 넣은 행이 보이지 않는다. 그래서 `inserted`의 출력을 쓴다. 알림의 FK 검사는 문장 끝에 하므로, 같은 문장에서 넣은 기록을 가리켜도 통과한다
+- **단지로 관심 회원을 찾으므로 `watchlist(apt_seq)` 인덱스를 둔다.** PK `(member_id, apt_seq)`는 앞 컬럼이 `member_id`라 이 조회에 쓸 수 없다
+- **목록·전체 수·안 읽음 수는 같은 숨김 조건을 쓴다.** 지금은 해제·사라짐·일괄이 된 거래의 알림은 셋 모두에서 빠진다. 배지 숫자와 목록이 어긋나지 않게 하려는 것이다. 알림 행은 지우지 않는다(스냅샷)
+- **숨김 조건은 LATERAL 안에서 `valid_apt_trade`를 apt_seq·deal_date로 거르고 `LIMIT 1`을 둔다.** 뷰를 거래 id로만 조인하면 조건이 `is_bulk` 윈도(PARTITION BY sgg_cd, apt_seq, deal_date) 안으로 내려가지 못한다. 또 집계도 LIMIT도 없는 단순 서브쿼리는 플래너가 바깥 조인으로 끌어올려서, LATERAL로 써도 결국 같은 일이 생긴다. 로컬 DB(알림 50건)에서 목록 첫 페이지가 `LIMIT 1` 없이는 888ms(거래 35만 행에 윈도 계산, 디스크 정렬), 있으면 12ms였다. 관심단지 목록은 LATERAL 안이 `max()` 집계라 끌어올려지지 않는다
+- **읽음 처리에서는 남의 알림도 없는 알림과 같은 404다.** `UPDATE … WHERE id = ? AND member_id = ?`가 0행이면 404를 준다. 그래서 다른 회원에게 그 id의 알림이 있는지 드러나지 않는다. 이미 읽은 알림은 `COALESCE`로 처음 읽은 시각을 둔다
+- **한계: 모두 읽음은 요청 시점의 안 읽은 알림을 모두 바꾼다.** 화면을 연 뒤에 생긴 알림도 함께 읽음이 된다. 알림은 하루 한 번 배치에서만 생기므로 받아들인다
