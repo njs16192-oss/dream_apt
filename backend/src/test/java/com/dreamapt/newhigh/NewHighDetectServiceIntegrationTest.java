@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.entry;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
@@ -16,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.dreamapt.support.TestMembers;
 import com.dreamapt.support.TestcontainersConfiguration;
 import com.dreamapt.support.TradeRows;
 
@@ -51,6 +53,7 @@ class NewHighDetectServiceIntegrationTest {
     @AfterEach
     void cleanUp() {
         rows.clear();
+        jdbc.update("DELETE FROM member");
     }
 
     @Test
@@ -164,6 +167,83 @@ class NewHighDetectServiceIntegrationTest {
         // 해제된 거래의 기록은 스냅샷이라 남는다 (보여줄 때 valid_apt_trade로 거른다)
         assertThat(result.recorded()).isEqualTo(1);
         assertThat(events()).containsExactly(entry(high, 100_000), entry(next, 100_000));
+    }
+
+    @Test
+    void 새_신고가는_그_단지를_관심단지로_둔_회원_모두에게_알린다() {
+        long a = TestMembers.insert(jdbc, "a@example.com");
+        long b = TestMembers.insert(jdbc, "b@example.com");
+        long otherWatcher = TestMembers.insert(jdbc, "c@example.com");
+        TestMembers.insert(jdbc, "nobody@example.com"); // 관심단지 없음
+        watch(a, APT);
+        watch(b, APT);
+        watch(otherWatcher, OTHER_APT); // 이 단지에는 신고가가 없다
+        rows.trade(APT, date(3, 1)).amount(100_000).insert();
+        long high = rows.trade(APT, date(3, 10)).amount(110_000).insert();
+        rows.trade(OTHER_APT, date(3, 1)).amount(100_000).insert();
+        rows.trade(OTHER_APT, date(3, 10)).amount(90_000).insert();
+
+        NewHighDetectResult result = service.detect(BASE_DATE);
+
+        assertThat(result.recorded()).isEqualTo(1);
+        assertThat(result.notified()).isEqualTo(2);
+        assertThat(notifications()).containsExactly(a + ":" + high, b + ":" + high);
+    }
+
+    @Test
+    void 다시_돌려도_알림이_늘지_않는다() {
+        long a = TestMembers.insert(jdbc, "a@example.com");
+        watch(a, APT);
+        rows.trade(APT, date(3, 1)).amount(100_000).insert();
+        long high = rows.trade(APT, date(3, 10)).amount(110_000).insert();
+        service.detect(BASE_DATE);
+
+        NewHighDetectResult again = service.detect(BASE_DATE);
+
+        assertThat(again.notified()).isZero();
+        assertThat(notifications()).containsExactly(a + ":" + high);
+    }
+
+    @Test
+    void 이미_기록된_신고가는_나중에_관심단지로_추가한_회원에게_알리지_않는다() {
+        rows.trade(APT, date(3, 1)).amount(100_000).insert();
+        rows.trade(APT, date(3, 10)).amount(110_000).insert();
+        service.detect(BASE_DATE); // 관심 회원이 없을 때 기록됨 (로컬 DB의 PR 7 이전 기록과 같다)
+        watch(TestMembers.insert(jdbc, "late@example.com"), APT);
+
+        NewHighDetectResult again = service.detect(BASE_DATE);
+
+        assertThat(again.notified()).isZero();
+        assertThat(notifications()).isEmpty();
+    }
+
+    @Test
+    void 이전_최고가가_해제된_뒤_늦게_잡힌_신고가는_그_실행에서_알린다() {
+        long a = TestMembers.insert(jdbc, "a@example.com");
+        watch(a, APT);
+        rows.trade(APT, date(3, 1)).amount(100_000).insert();
+        long high = rows.trade(APT, date(3, 5)).amount(130_000).insert();
+        long next = rows.trade(APT, date(3, 10)).amount(120_000).insert();
+        service.detect(BASE_DATE);
+
+        jdbc.update("UPDATE apt_trade SET cancelled = true WHERE id = ?", high);
+        NewHighDetectResult result = service.detect(BASE_DATE);
+
+        assertThat(result.notified()).isEqualTo(1);
+        assertThat(notifications()).containsExactly(a + ":" + high, a + ":" + next);
+    }
+
+    private void watch(long memberId, String aptSeq) {
+        jdbc.update("INSERT INTO watchlist (member_id, apt_seq, created_at) VALUES (?, ?, now())", memberId, aptSeq);
+    }
+
+    /** "회원 id:거래 id", 회원·거래 id 순 */
+    private List<String> notifications() {
+        return jdbc.queryForList("""
+                SELECT n.member_id || ':' || e.trade_id
+                FROM notification n JOIN new_high_event e ON e.id = n.new_high_event_id
+                ORDER BY n.member_id, e.trade_id
+                """, String.class);
     }
 
     private static LocalDate date(int month, int day) {

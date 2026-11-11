@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.dreamapt.common.ConflictException;
 import com.dreamapt.common.NotFoundException;
+import com.dreamapt.support.TestMembers;
 import com.dreamapt.support.TestcontainersConfiguration;
 import com.dreamapt.support.TradeRows;
 
@@ -43,8 +44,8 @@ class WatchlistServiceIntegrationTest {
         for (int i = 1; i <= MAX + 1; i++) {
             rows.complex(apt(i), "단지" + i, "11710");
         }
-        me = WatchlistTestMembers.insert(jdbc, "me@example.com");
-        other = WatchlistTestMembers.insert(jdbc, "other@example.com");
+        me = TestMembers.insert(jdbc, "me@example.com");
+        other = TestMembers.insert(jdbc, "other@example.com");
     }
 
     @AfterEach
