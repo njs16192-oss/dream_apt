@@ -116,7 +116,7 @@ class CollectTradeJobIntegrationTest {
         given(geocodeService.ready()).willReturn(true);
         given(geocodeService.geocode(anyInt(), anyBoolean()))
                 .willReturn(new GeocodeResult(3, 2, 1, 0, 0, 0, 0, false, 0));
-        doReturn(2).when(newHighEventRepository).recordSince(any());
+        doReturn(new NewHighEventRepository.RecordResult(2, 5)).when(newHighEventRepository).recordSince(any());
     }
 
     @Test
@@ -127,7 +127,8 @@ class CollectTradeJobIntegrationTest {
         verify(newHighEventRepository, times(1)).recordSince(BASE_DATE.minusMonths(3));
         assertThat(summary(execution, CollectBatchConfig.DETECT_NEW_HIGHS_STEP))
                 .containsEntry("summary.from", "2026-07-25")
-                .containsEntry("summary.recorded", 2);
+                .containsEntry("summary.recorded", 2)
+                .containsEntry("summary.notified", 5);
     }
 
     @Test
