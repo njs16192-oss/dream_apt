@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.dreamapt.support.TestMembers;
 import com.dreamapt.support.TestcontainersConfiguration;
 import com.dreamapt.support.TradeRows;
 
@@ -44,8 +45,8 @@ class WatchlistRepositoryIntegrationTest {
         rows.complex(HELIO, "헬리오시티", "11710");
         rows.complex(PARK, "파크리오", "11710");
         rows.complex(RAEMIAN, "래미안", "11680");
-        me = WatchlistTestMembers.insert(jdbc, "me@example.com");
-        other = WatchlistTestMembers.insert(jdbc, "other@example.com");
+        me = TestMembers.insert(jdbc, "me@example.com");
+        other = TestMembers.insert(jdbc, "other@example.com");
     }
 
     /** 다른 테스트가 apt_complex를 지울 때 FK에 걸리지 않게 관심단지·회원을 남기지 않는다 */
@@ -148,7 +149,7 @@ class WatchlistRepositoryIntegrationTest {
         repository.add(other, PARK);
 
         assertThat(repository.findAll(me)).extracting(WatchlistItem::aptSeq).containsExactly(HELIO);
-        assertThat(repository.findAll(WatchlistTestMembers.insert(jdbc, "empty@example.com"))).isEmpty();
+        assertThat(repository.findAll(TestMembers.insert(jdbc, "empty@example.com"))).isEmpty();
     }
 
     private void addAt(long memberId, String aptSeq, String createdAt) {

@@ -40,6 +40,7 @@ public class DetectNewHighsTasklet implements Tasklet {
             NewHighDetectResult result = detectService.detect(baseDate);
             summary.putString("summary.from", result.from().toString());
             summary.putInt("summary.recorded", result.recorded());
+            summary.putInt("summary.notified", result.notified());
             contribution.incrementWriteCount(result.recorded());
         } catch (RuntimeException e) {
             log.error("신고가 판단 실패, 수집 결과에는 영향 없음: {}", e.getMessage(), e);

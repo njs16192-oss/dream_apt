@@ -22,14 +22,15 @@ public class NewHighDetectService {
     private final NewHighEventRepository repository;
 
     /**
-     * 지금은 INSERT 한 문장이지만 트랜잭션을 미리 연다. PR 7에서 새 신고가로 알림을 만드는 일이
-     * 같은 트랜잭션에 들어가야 기록과 알림이 함께 커밋되거나 함께 롤백된다.
+     * 판단·기록·알림 생성이 한 문장이라 그 자체로 원자적이다. 트랜잭션은 이 메서드에 일을 더할 때를 위해 둔다
+     * (step은 ResourcelessTransactionManager라 여기서 트랜잭션을 연다, ADR 011 5. 구현 기록).
      */
     @Transactional
     public NewHighDetectResult detect(LocalDate baseDate) {
         LocalDate from = baseDate.minusMonths(DETECT_MONTHS);
-        int recorded = repository.recordSince(from);
-        log.info("신고가 판단 baseDate={} from={} 새 기록={}", baseDate, from, recorded);
-        return new NewHighDetectResult(from, recorded);
+        NewHighEventRepository.RecordResult result = repository.recordSince(from);
+        log.info("신고가 판단 baseDate={} from={} 새 기록={} 새 알림={}",
+                baseDate, from, result.recorded(), result.notified());
+        return new NewHighDetectResult(from, result.recorded(), result.notified());
     }
 }

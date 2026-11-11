@@ -28,6 +28,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 알림 읽음 처리
+         * @description 이미 읽었으면 처음 읽은 상태를 그대로 두고 204. 내 알림이 아니거나 없으면 404
+         */
+        put: operations["markRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 알림 모두 읽음 처리
+         * @description 내 안 읽은 알림을 모두 읽음으로 바꾼다
+         */
+        put: operations["markAllRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/signup": {
         parameters: {
             query?: never;
@@ -176,6 +216,46 @@ export interface paths {
          * @description 최근에 추가한 순서. 최대 50개
          */
         get: operations["watchlist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 알림 목록
+         * @description 최신순. 알림을 만든 뒤 거래가 해제·삭제되었거나 일괄 거래가 된 알림은 보여주지 않는다
+         */
+        get: operations["notifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 안 읽은 알림 수
+         * @description 목록에서 숨겨지는 알림은 세지 않는다
+         */
+        get: operations["unreadCount"];
         put?: never;
         post?: never;
         delete?: never;
@@ -414,6 +494,104 @@ export interface components {
              * @description 관심단지에 추가한 시각
              */
             addedAt: string;
+        };
+        /** @description 신고가 알림. 2020년 이후 같은 단지·면적 그룹의 최고가를 넘은 거래 */
+        NotificationItem: {
+            /**
+             * Format: int64
+             * @description 알림 ID
+             */
+            id: number;
+            /**
+             * @description 단지 ID
+             * @example 11710-8865
+             */
+            aptSeq: string;
+            /**
+             * @description 단지명
+             * @example 헬리오시티
+             */
+            complexName: string;
+            /**
+             * Format: int32
+             * @description 면적 그룹: 전용면적(㎡)을 정수로 반올림한 값
+             * @example 85
+             */
+            areaGroup: number;
+            /**
+             * @description 전용면적 원값(㎡)
+             * @example 84.99
+             */
+            exclusiveArea: number;
+            /**
+             * Format: int32
+             * @description 층
+             * @example 12
+             */
+            floor: number;
+            /**
+             * Format: date
+             * @description 계약일
+             * @example 2026-10-12
+             */
+            dealDate: string;
+            /**
+             * Format: int32
+             * @description 거래 금액. 단위: 만원.
+             * @example 245000
+             */
+            dealAmount: number;
+            /**
+             * Format: int32
+             * @description 신고가로 판단할 당시, 더 이른 계약일 거래의 최고가. 단위: 만원.
+             * @example 238000
+             */
+            previousMaxAmount: number;
+            /**
+             * Format: date-time
+             * @description 알림을 만든 시각
+             */
+            createdAt: string;
+            /** @description 읽었는지 */
+            read: boolean;
+        };
+        /** @description 페이지 응답 */
+        PageResponseNotificationItem: {
+            /** @description 이 페이지의 항목 */
+            content: components["schemas"]["NotificationItem"][];
+            /**
+             * Format: int32
+             * @description 페이지 번호 (0부터)
+             * @example 0
+             */
+            page: number;
+            /**
+             * Format: int32
+             * @description 페이지 크기
+             * @example 20
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description 전체 건수
+             * @example 1352
+             */
+            totalElements: number;
+            /**
+             * Format: int32
+             * @description 전체 페이지 수
+             * @example 68
+             */
+            totalPages: number;
+        };
+        /** @description 안 읽은 알림 수 */
+        UnreadCountResponse: {
+            /**
+             * Format: int64
+             * @description 안 읽은 알림 수. 목록에서 숨겨지는 알림은 세지 않는다
+             * @example 3
+             */
+            count: number;
         };
         /** @description 단지 검색 결과 */
         ComplexSearchItem: {
@@ -838,6 +1016,45 @@ export interface operations {
             };
         };
     };
+    markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 알림 ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    markAllRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     signup: {
         parameters: {
             query?: never;
@@ -1017,6 +1234,51 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WatchlistItem"][];
+                };
+            };
+        };
+    };
+    notifications: {
+        parameters: {
+            query?: {
+                /** @description 페이지 번호 (0부터) */
+                page?: number;
+                /** @description 페이지 크기 (1–100) */
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseNotificationItem"];
+                };
+            };
+        };
+    };
+    unreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UnreadCountResponse"];
                 };
             };
         };
