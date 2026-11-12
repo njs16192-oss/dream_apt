@@ -61,10 +61,3 @@ export function mockApi(routes: Record<string, Route>) {
   }
 }
 
-/** 테스트 사이에 쿠키가 남지 않게 모두 지운다 (setup.ts) */
-export function clearCookies() {
-  for (const pair of document.cookie.split(';')) {
-    const name = pair.split('=')[0].trim()
-    if (name) document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
-  }
-}
