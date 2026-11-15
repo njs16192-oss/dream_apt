@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useLogout } from '../api/auth'
 import { meQuery } from '../api/queries'
@@ -18,7 +19,10 @@ const AUTH_PATHS = new Set(['/login', '/signup'])
 export function AuthMenu() {
   const me = useQuery(meQuery)
   const navigate = useNavigate()
-  const logout = useLogout({ onLoggedOut: () => navigate('/') })
+  // 이동을 화면에 다 반영한 뒤에 캐시를 비운다 (useLogout의 onLoggedOut). 반영 전에 me = null이 그려지면
+  // 로그인이 필요한 화면의 RequireLogin이 로그인 화면으로 replace해 버린다.
+  // flushSync가 이동을 바로 그리려면 라우터가 이동을 transition으로 미루지 않아야 한다 (main.tsx의 useTransitions={false})
+  const logout = useLogout({ onLoggedOut: () => flushSync(() => navigate('/')) })
   const location = useLocation()
 
   if (me.data === undefined) {
