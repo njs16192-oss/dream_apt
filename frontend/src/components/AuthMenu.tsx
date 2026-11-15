@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from 'react-router'
 import { useLogout } from '../api/auth'
 import { meQuery } from '../api/queries'
+import { loginPath } from '../lib/safeNext'
 
 /** 이 화면들에서는 "로그인" 링크를 숨긴다 (이미 그 화면이다) */
 const AUTH_PATHS = new Set(['/login', '/signup'])
@@ -24,10 +25,9 @@ export function AuthMenu() {
 
   if (me.data === null) {
     if (AUTH_PATHS.has(location.pathname)) return null
-    const next = encodeURIComponent(location.pathname + location.search)
     return (
       <Link
-        to={`/login?next=${next}`}
+        to={loginPath(location.pathname + location.search)}
         className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
       >
         로그인

@@ -104,3 +104,10 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
   }
   return result.data
 }
+
+/** 본문이 없는 응답(204 등)용. 실패면 ApiError를 던진다. mutationFn에서 쓴다 */
+export function ensureOk(result: { error?: unknown; response: Response }): void {
+  if (!result.response.ok) {
+    throw new ApiError(result.response.status, result.error as ProblemDetail | undefined)
+  }
+}
