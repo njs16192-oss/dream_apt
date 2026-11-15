@@ -1,0 +1,109 @@
+import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { AppRoutes } from '../app/AppRoutes'
+import { mockApi } from '../test/mockApi'
+import { renderWithProviders } from '../test/render'
+import { AuthMenu } from './AuthMenu'
+
+vi.mock('./MapView', () => ({ MapView: () => <div data-testid="map" /> }))
+
+const ME = { id: 1, email: 'user@example.com', role: 'USER' }
+
+/** 공통 레이아웃의 헤더만 */
+const header = () => within(screen.getByRole('banner'))
+
+describe('AuthMenu', () => {
+  it('비로그인이면 지금 주소를 next에 실은 로그인 링크', async () => {
+    mockApi({})
+    renderWithProviders(<AuthMenu />, { route: '/complexes/11710-1?area=85' })
+
+    expect(await screen.findByRole('link', { name: '로그인' })).toHaveAttribute(
+      'href',
+      '/login?next=%2Fcomplexes%2F11710-1%3Farea%3D85',
+    )
+  })
+
+  it('확인 중에는 로그인 링크도 로그아웃 버튼도 없다', async () => {
+    let respond: (value: { status: number }) => void = () => {}
+    const server = mockApi({ 'GET /api/me': () => new Promise((resolve) => (respond = resolve)) })
+    renderWithProviders(<AuthMenu />)
+
+    await vi.waitFor(() => expect(server.to('/api/me')).toHaveLength(1))
+    expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '로그아웃' })).not.toBeInTheDocument()
+
+    respond({ status: 401 })
+    expect(await screen.findByRole('link', { name: '로그인' })).toBeInTheDocument()
+  })
+
+  it('확인에 실패하면(500) 오류 화면 없이 빈 자리만 둔다', async () => {
+    const server = mockApi({ 'GET /api/me': { status: 500, body: { status: 500 } } })
+    renderWithProviders(<AuthMenu />)
+
+    // 재시도까지 끝나기를 기다린다
+    await vi.waitFor(() => expect(server.to('/api/me')).toHaveLength(2))
+    expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it.each(['/login', '/signup'])('%s 화면에서는 로그인 링크를 숨긴다', async (route) => {
+    const server = mockApi({})
+    renderWithProviders(<AuthMenu />, { route })
+
+    await vi.waitFor(() => expect(server.to('/api/me')).toHaveLength(1))
+    // 응답을 반영할 때까지 한 번 더 기다린 뒤 확인
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
+  })
+
+  it('로그인했으면 이메일과 로그아웃 버튼', async () => {
+    mockApi({ 'GET /api/me': { body: ME } })
+    renderWithProviders(<AuthMenu />)
+
+    expect(await screen.findByText('user@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeEnabled()
+    expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
+  })
+})
+
+describe('헤더에서 로그아웃', () => {
+  it('로그아웃하면 같은 화면에서 헤더가 로그인 링크로 바뀐다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    const server = mockApi({
+      'GET /api/me': { body: ME },
+      'POST /api/auth/logout': { status: 204 },
+      '/api/regions': { body: [] },
+    })
+    renderWithProviders(<AppRoutes />, { route: '/' })
+
+    await userEvent.click(await header().findByRole('button', { name: '로그아웃' }))
+
+    expect(await header().findByRole('link', { name: '로그인' })).toHaveAttribute('href', '/login?next=%2F')
+    expect(header().queryByText('user@example.com')).not.toBeInTheDocument()
+    expect(server.callsTo('POST', '/api/auth/logout')).toHaveLength(1)
+    // 로그아웃 뒤 /api/me를 다시 묻지 않는다 (캐시에 null을 직접 넣음)
+    expect(server.to('/api/me')).toHaveLength(1)
+    expect(screen.getByTestId('location')).toHaveTextContent('/')
+  })
+
+  it('로그아웃 요청 중에는 버튼을 막고, 실패하면 이메일을 두고 실패를 알린다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    let respond: (value: { status: number; body: unknown }) => void = () => {}
+    mockApi({
+      'GET /api/me': { body: ME },
+      'POST /api/auth/logout': () => new Promise((resolve) => (respond = resolve)),
+      '/api/regions': { body: [] },
+    })
+    renderWithProviders(<AppRoutes />, { route: '/' })
+
+    await userEvent.click(await header().findByRole('button', { name: '로그아웃' }))
+    expect(await header().findByRole('button', { name: '로그아웃 중…' })).toBeDisabled()
+
+    respond({ status: 500, body: { status: 500 } })
+
+    expect(await header().findByRole('alert')).toHaveTextContent('로그아웃 실패')
+    expect(header().getByText('user@example.com')).toBeInTheDocument()
+    expect(header().getByRole('button', { name: '로그아웃' })).toBeEnabled()
+  })
+})
