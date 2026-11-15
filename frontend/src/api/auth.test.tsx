@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createQueryClient } from '../app/queryClient'
 import { mockApi } from '../test/mockApi'
-import { useLogout } from './auth'
+import { useLogin, useLogout } from './auth'
 import { ApiError } from './client'
 import { ME_KEY, meQuery } from './queries'
 
@@ -63,6 +63,41 @@ describe('meQuery', () => {
     await queryClient.fetchQuery(meQuery)
 
     expect(server.to('/api/me')).toHaveLength(1)
+  })
+})
+
+describe('useLogin', () => {
+  it('성공하면 응답을 내 정보로 넣고, 이전 계정의 회원 데이터만 지운다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    const other = { id: 2, email: 'other@example.com', role: 'USER' as const }
+    const server = mockApi({ 'POST /api/auth/login': { body: other } })
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(ME_KEY, null)
+    queryClient.setQueryData(['me', 'watchlist'], [{ aptSeq: '11710-1' }]) // 이전 계정이 남긴 것
+    queryClient.setQueryData(['complexes', '11710-1'], { aptSeq: '11710-1' })
+    const { result } = renderHook(() => useLogin(), { wrapper: withClient(queryClient) })
+
+    act(() => result.current.mutate({ email: 'other@example.com', password: 'password123' }))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(queryClient.getQueryData(ME_KEY)).toEqual(other)
+    expect(queryClient.getQueryData(['me', 'watchlist'])).toBeUndefined()
+    expect(queryClient.getQueryData(['complexes', '11710-1'])).toEqual({ aptSeq: '11710-1' })
+    expect(server.to('/api/me')).toHaveLength(0)
+  })
+
+  it('실패하면 ApiError이고 캐시는 그대로', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({ 'POST /api/auth/login': { status: 401, body: { status: 401 } } })
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(ME_KEY, null)
+    const { result } = renderHook(() => useLogin(), { wrapper: withClient(queryClient) })
+
+    act(() => result.current.mutate({ email: 'a@example.com', password: 'x' }))
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect((result.current.error as ApiError).status).toBe(401)
+    expect(queryClient.getQueryData(ME_KEY)).toBeNull()
   })
 })
 

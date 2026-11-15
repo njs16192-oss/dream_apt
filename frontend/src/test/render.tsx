@@ -1,14 +1,17 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
-import type { ReactElement } from 'react'
+import type { ComponentProps, ReactElement } from 'react'
 import { MemoryRouter } from 'react-router'
 import { createQueryClient } from '../app/queryClient'
 import { RouterProbe } from './RouterProbe'
 
+/** 주소 문자열, 또는 라우터 state까지 담은 { pathname, search, state } */
+type Entry = NonNullable<ComponentProps<typeof MemoryRouter>['initialEntries']>[number]
+
 type Options = {
   /** 시작 주소. history를 여러 개 두려면 entries를 쓴다 */
-  route?: string
-  entries?: string[]
+  route?: Entry
+  entries?: Entry[]
 }
 
 /**

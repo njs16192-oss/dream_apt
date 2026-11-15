@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { Loading } from '../components/Loading'
 import { ComplexPage } from '../pages/ComplexPage'
+import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { RegionPage } from '../pages/RegionPage'
 import { SearchPage } from '../pages/SearchPage'
@@ -17,6 +18,7 @@ export function AppRoutes() {
         <Route index element={<SearchPage />} />
         <Route path="complexes/:aptSeq" element={<ComplexPage />} />
         <Route path="regions/:sggCd" element={<RegionPage />} />
+        <Route path="login" element={<LoginPage />} />
         <Route
           path="map"
           element={
