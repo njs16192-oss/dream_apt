@@ -89,3 +89,17 @@ export function regionMonthlyVolumesQuery(sggCd: string, from: string, to: strin
       api.GET('/api/regions/{sggCd}/monthly', { params: { path: { sggCd }, query: { from, to } } }).then(unwrap),
   })
 }
+
+/** 로그인한 회원 정보. 비로그인이면 null (오류 아님) */
+export const ME_KEY = ['me'] as const
+
+export const meQuery = queryOptions({
+  queryKey: ME_KEY,
+  queryFn: async () => {
+    const result = await api.GET('/api/me')
+    if (result.response.status === 401) return null
+    return unwrap(result)
+  },
+  // 로그인·로그아웃 때 우리가 직접 캐시를 고치니 시간 기준으로 다시 물을 필요가 없다
+  staleTime: Infinity,
+})
