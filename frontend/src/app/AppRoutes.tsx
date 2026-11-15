@@ -7,6 +7,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { RegionPage } from '../pages/RegionPage'
 import { SearchPage } from '../pages/SearchPage'
+import { SignupPage } from '../pages/SignupPage'
 
 // 지도 화면은 Leaflet(+CSS)을 쓰므로 따로 나눠 불러온다. 다른 화면의 번들 크기에 들어가지 않는다
 const MapPage = lazy(() => import('../pages/MapPage').then((module) => ({ default: module.MapPage })))
@@ -19,6 +20,7 @@ export function AppRoutes() {
         <Route path="complexes/:aptSeq" element={<ComplexPage />} />
         <Route path="regions/:sggCd" element={<RegionPage />} />
         <Route path="login" element={<LoginPage />} />
+        <Route path="signup" element={<SignupPage />} />
         <Route
           path="map"
           element={

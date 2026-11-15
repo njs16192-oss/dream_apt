@@ -28,6 +28,13 @@ export function useLogout() {
   })
 }
 
+/** 가입. 서버는 가입만 하고 로그인하지 않으므로 캐시는 그대로 둔다 (화면이 로그인 화면으로 보낸다) */
+export function useSignup() {
+  return useMutation({
+    mutationFn: (body: Schemas['SignupRequest']) => api.POST('/api/auth/signup', { body }).then(unwrap),
+  })
+}
+
 /** 로그인. 응답이 곧 내 정보(MeResponse)라 /api/me를 다시 묻지 않고 캐시에 넣는다 */
 export function useLogin() {
   const queryClient = useQueryClient()
