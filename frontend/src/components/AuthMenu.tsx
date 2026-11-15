@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useLogout } from '../api/auth'
 import { meQuery } from '../api/queries'
 import { loginPath } from '../lib/safeNext'
@@ -11,11 +11,14 @@ const AUTH_PATHS = new Set(['/login', '/signup'])
  * 헤더 오른쪽의 로그인 상태.
  * - 확인 중이거나 확인에 실패하면 빈 자리만 둔다. 헤더 때문에 전체 오류 화면을 띄우지 않는다
  * - 비로그인: "로그인" 링크. 로그인한 뒤 지금 화면으로 돌아오도록 ?next=에 현재 주소를 싣는다
- * - 로그인: 이메일 + 로그아웃 버튼. 로그아웃해도 화면은 옮기지 않는다 (지금은 공개 화면뿐)
+ * - 로그인: 관심단지 링크 + 이메일 + 로그아웃 버튼
+ * - 로그아웃 버튼으로 로그아웃하면 첫 화면('/')으로 간다. 로그인이 필요한 화면에 있었다면 거기서 벗어나야 하고,
+ *   공개 화면에서도 같은 동작으로 맞춘다. 세션 만료(401)일 때는 RequireLogin이 로그인 화면(?next=)으로 보낸다
  */
 export function AuthMenu() {
   const me = useQuery(meQuery)
-  const logout = useLogout()
+  const navigate = useNavigate()
+  const logout = useLogout({ onLoggedOut: () => navigate('/') })
   const location = useLocation()
 
   if (me.data === undefined) {
@@ -37,7 +40,14 @@ export function AuthMenu() {
 
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <span title={me.data.email} className="max-w-32 truncate text-sm text-slate-600 sm:max-w-56">
+      <Link
+        to="/watchlist"
+        className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+      >
+        관심단지
+      </Link>
+      {/* 좁은 화면에서는 메뉴가 넘치지 않게 이메일을 숨긴다 */}
+      <span title={me.data.email} className="hidden max-w-56 truncate text-sm text-slate-600 sm:block">
         {me.data.email}
       </span>
       <button

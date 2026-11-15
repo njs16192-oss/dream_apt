@@ -2,12 +2,14 @@ import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { Loading } from '../components/Loading'
+import { RequireLogin } from '../components/RequireLogin'
 import { ComplexPage } from '../pages/ComplexPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { RegionPage } from '../pages/RegionPage'
 import { SearchPage } from '../pages/SearchPage'
 import { SignupPage } from '../pages/SignupPage'
+import { WatchlistPage } from '../pages/WatchlistPage'
 
 // 지도 화면은 Leaflet(+CSS)을 쓰므로 따로 나눠 불러온다. 다른 화면의 번들 크기에 들어가지 않는다
 const MapPage = lazy(() => import('../pages/MapPage').then((module) => ({ default: module.MapPage })))
@@ -21,6 +23,14 @@ export function AppRoutes() {
         <Route path="regions/:sggCd" element={<RegionPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="signup" element={<SignupPage />} />
+        <Route
+          path="watchlist"
+          element={
+            <RequireLogin>
+              <WatchlistPage />
+            </RequireLogin>
+          }
+        />
         <Route
           path="map"
           element={

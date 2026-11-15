@@ -103,3 +103,16 @@ export const meQuery = queryOptions({
   // 로그인·로그아웃 때 우리가 직접 캐시를 고치니 시간 기준으로 다시 물을 필요가 없다
   staleTime: Infinity,
 })
+
+/** 관심단지 최대 개수. 서버(WatchlistService.MAX_WATCHLIST)와 같다. 넘으면 추가가 409 */
+export const WATCHLIST_MAX = 50
+
+/**
+ * 내 관심단지 (최근에 추가한 순서). 회원 데이터라 키가 ['me', …] 아래다.
+ * 로그아웃·다른 계정 로그인 때 replaceMe가 지우고, 401이면 createQueryClient가 세션 만료로 처리한다.
+ * 비로그인일 때 부르지 않도록 쓰는 쪽에서 enabled를 건다 (로그인 화면 안이면 필요 없음)
+ */
+export const watchlistQuery = queryOptions({
+  queryKey: ['me', 'watchlist'],
+  queryFn: () => api.GET('/api/me/watchlist').then(unwrap),
+})

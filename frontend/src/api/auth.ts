@@ -23,11 +23,23 @@ export async function clearSession(queryClient: QueryClient) {
   await replaceMe(queryClient, null)
 }
 
-export function useLogout() {
+type LogoutOptions = {
+  /**
+   * 서버 로그아웃이 성공한 뒤, 캐시를 비우기 **전에** 부른다. 화면 이동은 여기서 한다.
+   * 캐시를 먼저 비우면 로그인이 필요한 화면(RequireLogin)이 me = null을 보고 로그인 화면으로 보낼 수 있다.
+   * 지금은 TanStack이 화면 갱신 알림을 다음 task로 미뤄서 순서를 바꿔도 겹치지 않지만, 그 내부 동작에 기대지 않는다.
+   */
+  onLoggedOut?: () => void
+}
+
+export function useLogout({ onLoggedOut }: LogoutOptions = {}) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => ensureOk(await api.POST('/api/auth/logout')),
-    onSuccess: () => replaceMe(queryClient, null),
+    onSuccess: () => {
+      onLoggedOut?.()
+      return replaceMe(queryClient, null)
+    },
     // 실패하면 아무것도 안 바꾼다: 서버 세션이 살아 있는데 화면만 로그아웃이면 거짓
   })
 }
