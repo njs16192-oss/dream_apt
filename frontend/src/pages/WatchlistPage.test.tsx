@@ -83,11 +83,11 @@ describe('WatchlistPage', () => {
     expect(document.title).toBe('관심단지 · Dream APT')
   })
 
-  it('최근 거래일이 없으면 "2020년 이후 거래 없음"', async () => {
+  it('최근 일반 거래일이 없으면(거래 없음·일괄 거래만) "2020년 이후 일반 거래 없음"', async () => {
     mockApi({ 'GET /api/me': { body: ME }, [WATCHLIST]: { body: [item({ lastDealDate: null })] } })
     renderWithProviders(<AppRoutes />, { route: '/watchlist' })
 
-    expect(await screen.findByText('2020년 이후 거래 없음')).toBeInTheDocument()
+    expect(await screen.findByText('2020년 이후 일반 거래 없음')).toBeInTheDocument()
     expect(screen.queryByText(/최근 거래/)).not.toBeInTheDocument()
   })
 

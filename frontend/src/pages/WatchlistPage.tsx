@@ -65,8 +65,9 @@ function WatchlistRow({ item }: { item: Schemas['WatchlistItem'] }) {
         <span className="ml-2 text-sm text-slate-500">{item.sggName}</span>
       </div>
       <span className="text-sm text-slate-600">
-        {/* 수집 범위가 2020년부터라 "거래 없음"이 아니라 그 이후에 없다는 뜻이다 */}
-        {item.lastDealDate === null ? '2020년 이후 거래 없음' : `최근 거래 ${formatDate(item.lastDealDate)}`}
+        {/* lastDealDate는 일괄 거래를 빼고 구한다. 일괄 거래만 있는 단지도 null이라 "거래 없음"이 아니라 "일반 거래 없음",
+            수집 범위가 2020년부터라 "2020년 이후" */}
+        {item.lastDealDate === null ? '2020년 이후 일반 거래 없음' : `최근 거래 ${formatDate(item.lastDealDate)}`}
       </span>
     </li>
   )
