@@ -158,6 +158,17 @@ describe('ComplexPage', () => {
     expect(screen.queryByRole('link', { name: '주변 단지 지도 →' })).not.toBeInTheDocument()
   })
 
+  it('제목 옆에 관심단지 버튼을 둔다 (비로그인이면 이 단지로 돌아오는 로그인 링크)', async () => {
+    setup()
+    renderPage(`/complexes/${APT_SEQ}?area=85`)
+
+    const header = within(await screen.findByRole('banner'))
+    expect(await header.findByRole('link', { name: '관심단지' })).toHaveAttribute(
+      'href',
+      `/login?next=${encodeURIComponent(`/complexes/${APT_SEQ}?area=85`)}`,
+    )
+  })
+
   it('없는 단지면 404 안내와 검색 링크를 보여주고 거래 목록은 요청하지 않는다', async () => {
     const server = setup({ detail: { status: 404, body: { status: 404, detail: '단지 없음' } } })
     renderPage()
