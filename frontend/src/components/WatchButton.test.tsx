@@ -230,6 +230,17 @@ describe('WatchButton 추가·해제', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('추가가 500으로 실패해도 목록을 다시 요청한다 (서버에 반영됐는지 모르므로 서버 상태로 맞춘다)', async () => {
+    const server = setupServer({ put: () => ({ status: 500, body: { status: 500 } }) })
+    await renderReady()
+    expect(server.callsTo('GET', WATCHLIST)).toHaveLength(1)
+
+    await userEvent.click(button())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('잠시 후 다시 시도해 주세요')
+    await vi.waitFor(() => expect(server.callsTo('GET', WATCHLIST)).toHaveLength(2))
+  })
+
   it('해제가 실패하면 안내하고 눌린 상태 그대로다', async () => {
     setupServer({ watched: true, del: () => ({ status: 500, body: { status: 500 } }) })
     await renderReady()
