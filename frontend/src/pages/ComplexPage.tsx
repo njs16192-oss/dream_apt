@@ -10,6 +10,7 @@ import { Loading } from '../components/Loading'
 import { Pagination } from '../components/Pagination'
 import { PriceTrend } from '../components/PriceTrend'
 import { TradeList } from '../components/TradeList'
+import { WatchButton } from '../components/WatchButton'
 import { parsePage, pickAreaGroup, searchWith } from '../lib/complexParams'
 import { DEFAULT_RADIUS, mapPath } from '../lib/mapParams'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
@@ -136,7 +137,10 @@ function ComplexHeader({ complex }: { complex: Schemas['ComplexDetail'] }) {
   const location = [complex.sggName, complex.umdName].filter(Boolean).join(' ')
   return (
     <header className="space-y-1">
-      <h1 className="text-2xl font-bold text-slate-900">{complex.name}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="min-w-0 text-2xl font-bold text-slate-900">{complex.name}</h1>
+        <WatchButton aptSeq={complex.aptSeq} />
+      </div>
       <p className="text-sm text-slate-600">
         {location}
         {complex.buildYear !== null && ` · ${complex.buildYear}년 준공`}

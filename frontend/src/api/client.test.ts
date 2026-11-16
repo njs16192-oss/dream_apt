@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { shouldRetry } from '../app/queryClient'
 import { mockApi, type MockResponse } from '../test/mockApi'
-import { api, ApiError, isNotFound, readCookie, unwrap } from './client'
+import { api, ApiError, ensureOk, isNotFound, readCookie, unwrap } from './client'
 
 const LOGOUT = '/api/auth/logout'
 
@@ -183,6 +183,40 @@ describe('api + unwrap', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(500)
     expect(isNotFound(error)).toBe(false)
+  })
+})
+
+describe('api + ensureOk', () => {
+  it('204는 통과한다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({ 'DELETE /api/me/watchlist/11710-1': { status: 204 } })
+
+    const result = await api.DELETE('/api/me/watchlist/{aptSeq}', { params: { path: { aptSeq: '11710-1' } } })
+
+    expect(() => ensureOk(result)).not.toThrow()
+  })
+
+  it('2xx가 아니면 상태와 ProblemDetail을 담은 ApiError를 던진다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({
+      'PUT /api/me/watchlist/11710-1': {
+        status: 409,
+        body: { title: 'Conflict', status: 409, detail: '관심단지는 최대 50개까지입니다' },
+      },
+    })
+
+    const result = await api.PUT('/api/me/watchlist/{aptSeq}', { params: { path: { aptSeq: '11710-1' } } })
+    const error = (() => {
+      try {
+        ensureOk(result)
+      } catch (e) {
+        return e
+      }
+    })()
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(409)
+    expect((error as ApiError).problem?.detail).toBe('관심단지는 최대 50개까지입니다')
   })
 })
 

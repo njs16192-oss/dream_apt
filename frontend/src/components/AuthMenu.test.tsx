@@ -1,5 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect } from 'react'
+import { useLocation } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../app/AppRoutes'
 import { mockApi } from '../test/mockApi'
@@ -64,11 +66,20 @@ describe('AuthMenu', () => {
     expect(await screen.findByText('user@example.com')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '로그아웃' })).toBeEnabled()
     expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '관심단지' })).toHaveAttribute('href', '/watchlist')
+  })
+
+  it('비로그인이면 관심단지 링크가 없다', async () => {
+    mockApi({})
+    renderWithProviders(<AuthMenu />)
+
+    expect(await screen.findByRole('link', { name: '로그인' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '관심단지' })).not.toBeInTheDocument()
   })
 })
 
 describe('헤더에서 로그아웃', () => {
-  it('로그아웃하면 같은 화면에서 헤더가 로그인 링크로 바뀐다', async () => {
+  it('첫 화면에서 로그아웃하면 그대로 첫 화면이고 헤더가 로그인 링크로 바뀐다', async () => {
     document.cookie = 'XSRF-TOKEN=t; path=/'
     const server = mockApi({
       'GET /api/me': { body: ME },
@@ -105,5 +116,72 @@ describe('헤더에서 로그아웃', () => {
     expect(await header().findByRole('alert')).toHaveTextContent('로그아웃 실패')
     expect(header().getByText('user@example.com')).toBeInTheDocument()
     expect(header().getByRole('button', { name: '로그아웃' })).toBeEnabled()
+  })
+
+  /** 지나간 주소를 모두 적는다. 로그인 화면을 거쳤는지 확인용 */
+  function LocationLog({ log }: { log: string[] }) {
+    const location = useLocation()
+    useEffect(() => {
+      log.push(location.pathname + location.search)
+    }, [location, log])
+    return null
+  }
+
+  it('로그인이 필요한 화면에서 로그아웃하면 로그인 화면을 거치지 않고 첫 화면으로 간다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({
+      'GET /api/me': { body: ME },
+      'GET /api/me/watchlist': { body: [] },
+      'POST /api/auth/logout': { status: 204 },
+      '/api/regions': { body: [] },
+    })
+    const log: string[] = []
+    renderWithProviders(
+      <>
+        <AppRoutes />
+        <LocationLog log={log} />
+      </>,
+      { route: '/watchlist' },
+    )
+
+    await screen.findByText('관심단지가 없어요')
+    await userEvent.click(header().getByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByRole('heading', { name: '단지 검색' })).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
+    expect(header().getByRole('link', { name: '로그인' })).toHaveAttribute('href', '/login?next=%2F')
+    expect(log.some((path) => path.startsWith('/login'))).toBe(false)
+  })
+
+  it('공개 화면에서 로그아웃해도 첫 화면으로 간다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({
+      'GET /api/me': { body: ME },
+      'POST /api/auth/logout': { status: 204 },
+      '/api/complexes/11710-1': { status: 404, body: { status: 404 } },
+      '/api/regions': { body: [] },
+    })
+    renderWithProviders(<AppRoutes />, { route: '/complexes/11710-1' })
+
+    await userEvent.click(await header().findByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByRole('heading', { name: '단지 검색' })).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
+  })
+
+  it('로그아웃이 실패하면 화면을 옮기지 않는다', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    mockApi({
+      'GET /api/me': { body: ME },
+      'GET /api/me/watchlist': { body: [] },
+      'POST /api/auth/logout': { status: 500, body: { status: 500 } },
+    })
+    renderWithProviders(<AppRoutes />, { route: '/watchlist' })
+
+    await screen.findByText('관심단지가 없어요')
+    await userEvent.click(header().getByRole('button', { name: '로그아웃' }))
+
+    expect(await header().findByRole('alert')).toHaveTextContent('로그아웃 실패')
+    expect(screen.getByTestId('location')).toHaveTextContent('/watchlist')
   })
 })

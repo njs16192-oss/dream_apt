@@ -26,7 +26,8 @@ export function renderWithProviders(ui: ReactElement, { route = '/', entries }: 
   const initialEntries = entries ?? [route]
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries} initialIndex={initialEntries.length - 1}>
+      {/* main.tsx와 같게 이동을 transition으로 미루지 않는다 */}
+      <MemoryRouter initialEntries={initialEntries} initialIndex={initialEntries.length - 1} useTransitions={false}>
         {ui}
         <RouterProbe />
       </MemoryRouter>

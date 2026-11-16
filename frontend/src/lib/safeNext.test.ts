@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { safeNext } from './safeNext'
+import { loginPath, safeNext } from './safeNext'
 
 describe('safeNext', () => {
   it.each([
@@ -29,5 +29,16 @@ describe('safeNext', () => {
 
   it.each([['/login'], ['/login?next=/map'], ['/signup']])('로그인·가입 화면 %j로는 돌아가지 않는다', (next) => {
     expect(safeNext(next)).toBe('/')
+  })
+})
+
+describe('loginPath', () => {
+  it('지금 주소를 인코딩해 next에 싣는다', () => {
+    expect(loginPath('/complexes/11710-1?area=85')).toBe('/login?next=%2Fcomplexes%2F11710-1%3Farea%3D85')
+  })
+
+  it('만든 next는 safeNext를 거쳐 원래 주소로 돌아온다', () => {
+    const next = new URLSearchParams(loginPath('/watchlist?a=1&b=2').split('?')[1]).get('next')
+    expect(safeNext(next)).toBe('/watchlist?a=1&b=2')
   })
 })

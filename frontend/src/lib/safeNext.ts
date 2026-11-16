@@ -20,3 +20,11 @@ export function safeNext(next: string | null | undefined): string {
   if (url.origin !== origin || AUTH_PATHS.has(url.pathname)) return '/'
   return url.pathname + url.search + url.hash
 }
+
+/**
+ * 로그인한 뒤 here로 돌아오는 로그인 화면 주소. here는 pathname + search (예: '/complexes/11710-1?area=85').
+ * 로그인 화면은 받은 next를 safeNext로 다시 검사한다.
+ */
+export function loginPath(here: string): string {
+  return `/login?next=${encodeURIComponent(here)}`
+}

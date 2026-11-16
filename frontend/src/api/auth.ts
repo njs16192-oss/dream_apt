@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { api, ApiError, unwrap, type ProblemDetail, type Schemas } from './client'
+import { api, ensureOk, unwrap, type Schemas } from './client'
 import { meQuery } from './queries'
 
 /**
@@ -14,16 +14,32 @@ async function replaceMe(queryClient: QueryClient, me: Schemas['MeResponse'] | n
   queryClient.removeQueries({ queryKey: ['me'], predicate: (query) => query.queryKey.length > 1 })
 }
 
-export function useLogout() {
+/**
+ * 세션이 끝났을 때(회원 API의 401) 로그아웃 상태로 바꾼다. createQueryClient의 onError가 부른다.
+ * 여러 요청이 한꺼번에 401을 받을 수 있어서, 이미 비로그인(null)이면 아무것도 하지 않는다.
+ */
+export async function clearSession(queryClient: QueryClient) {
+  if (queryClient.getQueryData(meQuery.queryKey) === null) return
+  await replaceMe(queryClient, null)
+}
+
+type LogoutOptions = {
+  /**
+   * 서버 로그아웃이 성공한 뒤, 캐시를 비우기 **전에** 부른다. 화면 이동은 여기서 한다.
+   * 캐시를 먼저 비우면 로그인이 필요한 화면(RequireLogin)이 me = null을 보고 로그인 화면으로 보낸다.
+   * 이동이 화면에 반영되기 전에 캐시를 비워도 마찬가지라, 부르는 쪽이 이동을 다 그린 뒤 돌아와야 한다 (AuthMenu의 flushSync).
+   */
+  onLoggedOut?: () => void
+}
+
+export function useLogout({ onLoggedOut }: LogoutOptions = {}) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const result = await api.POST('/api/auth/logout')
-      if (!result.response.ok) {
-        throw new ApiError(result.response.status, result.error as ProblemDetail | undefined)
-      }
+    mutationFn: async () => ensureOk(await api.POST('/api/auth/logout')),
+    onSuccess: () => {
+      onLoggedOut?.()
+      return replaceMe(queryClient, null)
     },
-    onSuccess: () => replaceMe(queryClient, null),
     // 실패하면 아무것도 안 바꾼다: 서버 세션이 살아 있는데 화면만 로그아웃이면 거짓
   })
 }

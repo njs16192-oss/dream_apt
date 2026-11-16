@@ -13,7 +13,8 @@ const queryClient = createQueryClient()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      {/* 이동을 transition으로 미루지 않는다 (test/render.tsx도 같게). 이유는 AuthMenu의 로그아웃 참고 */}
+      <BrowserRouter useTransitions={false}>
         <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>
