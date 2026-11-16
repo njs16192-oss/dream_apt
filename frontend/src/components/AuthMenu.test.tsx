@@ -1,10 +1,11 @@
-import { screen, within } from '@testing-library/react'
+import { focusManager } from '@tanstack/react-query'
+import { act, cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
 import { useLocation } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../app/AppRoutes'
-import { mockApi } from '../test/mockApi'
+import { mockApi, type MockResponse } from '../test/mockApi'
 import { renderWithProviders } from '../test/render'
 import { AuthMenu } from './AuthMenu'
 
@@ -183,5 +184,112 @@ describe('헤더에서 로그아웃', () => {
 
     expect(await header().findByRole('alert')).toHaveTextContent('로그아웃 실패')
     expect(screen.getByTestId('location')).toHaveTextContent('/watchlist')
+  })
+})
+
+describe('헤더 알림 링크와 안 읽은 수', () => {
+  const COUNT = '/api/me/notifications/unread-count'
+
+  function renderLoggedIn(count: MockResponse | (() => MockResponse)) {
+    const server = mockApi({ 'GET /api/me': { body: ME }, [`GET ${COUNT}`]: count })
+    renderWithProviders(<AuthMenu />)
+    return server
+  }
+
+  it('로그인했으면 알림 링크, 비로그인이면 링크도 안 읽은 수 요청도 없다', async () => {
+    renderLoggedIn({ body: { count: 0 } })
+    expect(await screen.findByRole('link', { name: '알림' })).toHaveAttribute('href', '/notifications')
+    cleanup()
+
+    const server = mockApi({})
+    renderWithProviders(<AuthMenu />)
+    await screen.findByRole('link', { name: '로그인' })
+    expect(screen.queryByRole('link', { name: /알림/ })).not.toBeInTheDocument()
+    expect(server.to(COUNT)).toHaveLength(0)
+  })
+
+  it('안 읽은 알림이 있으면 배지와 개수를 담은 링크 이름', async () => {
+    renderLoggedIn({ body: { count: 3 } })
+
+    const link = await screen.findByRole('link', { name: '알림, 안 읽은 알림 3개' })
+    expect(link).toHaveTextContent('알림3')
+  })
+
+  it('0개면 배지가 없다', async () => {
+    const server = renderLoggedIn({ body: { count: 0 } })
+
+    await vi.waitFor(() => expect(server.to(COUNT)).toHaveLength(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.getByRole('link', { name: '알림' })).toHaveTextContent(/^알림$/)
+  })
+
+  it('99개를 넘으면 99+ (링크 이름에는 실제 개수)', async () => {
+    renderLoggedIn({ body: { count: 120 } })
+
+    expect(await screen.findByRole('link', { name: '알림, 안 읽은 알림 120개' })).toHaveTextContent('알림99+')
+  })
+
+  it('안 읽은 수를 불러오지 못하면(500) 배지 없이 링크만', async () => {
+    const server = renderLoggedIn({ status: 500, body: { status: 500 } })
+
+    await vi.waitFor(() => expect(server.to(COUNT)).toHaveLength(2))
+    expect(screen.getByRole('link', { name: '알림' })).toHaveTextContent(/^알림$/)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('60초마다 다시 묻는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let count = 1
+      const server = renderLoggedIn(() => ({ body: { count } }))
+      await screen.findByRole('link', { name: '알림, 안 읽은 알림 1개' })
+      const before = server.to(COUNT).length
+
+      count = 2
+      await vi.advanceTimersByTimeAsync(59_000)
+      expect(server.to(COUNT)).toHaveLength(before)
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await screen.findByRole('link', { name: '알림, 안 읽은 알림 2개' })).toBeInTheDocument()
+      expect(server.to(COUNT)).toHaveLength(before + 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('창으로 돌아오면 다시 묻는다 (staleTime 0이라 바로 전에 받았어도)', async () => {
+    try {
+      let count = 1
+      const server = renderLoggedIn(() => ({ body: { count } }))
+      await screen.findByRole('link', { name: '알림, 안 읽은 알림 1개' })
+      const before = server.to(COUNT).length
+
+      count = 0
+      act(() => focusManager.setFocused(false))
+      act(() => focusManager.setFocused(true))
+
+      expect(await screen.findByRole('link', { name: '알림' })).toBeInTheDocument()
+      expect(server.to(COUNT)).toHaveLength(before + 1)
+    } finally {
+      focusManager.setFocused(undefined)
+    }
+  })
+
+  it('안 읽은 수가 401(다른 탭에서 로그아웃)이면 헤더가 로그인 링크로 바뀐다', async () => {
+    let expired = false
+    renderLoggedIn(() => (expired ? { status: 401, body: { status: 401 } } : { body: { count: 1 } }))
+    await screen.findByRole('link', { name: '알림, 안 읽은 알림 1개' })
+
+    expired = true
+    act(() => focusManager.setFocused(false))
+    act(() => focusManager.setFocused(true))
+
+    try {
+      expect(await screen.findByRole('link', { name: '로그인' })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /알림/ })).not.toBeInTheDocument()
+      expect(screen.queryByText('user@example.com')).not.toBeInTheDocument()
+    } finally {
+      focusManager.setFocused(undefined)
+    }
   })
 })

@@ -17,6 +17,8 @@ export type RecordedRequest = {
  */
 const DEFAULT_ROUTES: Record<string, Route> = {
   'GET /api/me': { status: 401, body: { title: 'Unauthorized', status: 401, detail: '로그인이 필요합니다' } },
+  // 로그인 상태로 그리면 헤더가 안 읽은 알림 수를 묻는다. 정하지 않으면 0개
+  'GET /api/me/notifications/unread-count': { body: { count: 0 } },
 }
 
 /**

@@ -11,10 +11,10 @@ export function Layout() {
           <Link to="/" className="shrink-0 text-lg font-bold tracking-tight text-slate-900">
             Dream APT
           </Link>
-          <nav aria-label="주요 메뉴" className="ml-auto flex min-w-0 items-center gap-1">
+          <nav aria-label="주요 메뉴" className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1">
             <Link
               to="/map"
-              className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="shrink-0 rounded-md px-1.5 py-1.5 sm:px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
             >
               지도
             </Link>

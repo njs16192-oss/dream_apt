@@ -6,6 +6,7 @@ import { RequireLogin } from '../components/RequireLogin'
 import { ComplexPage } from '../pages/ComplexPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { NotificationsPage } from '../pages/NotificationsPage'
 import { RegionPage } from '../pages/RegionPage'
 import { SearchPage } from '../pages/SearchPage'
 import { SignupPage } from '../pages/SignupPage'
@@ -28,6 +29,14 @@ export function AppRoutes() {
           element={
             <RequireLogin>
               <WatchlistPage />
+            </RequireLogin>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <RequireLogin>
+              <NotificationsPage />
             </RequireLogin>
           }
         />
