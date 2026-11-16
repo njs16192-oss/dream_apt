@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { watchlistQuery } from './queries'
 import { api, ensureOk } from './client'
+import { watchlistQuery } from './queries'
 
 /** PUT /api/me/watchlist/{aptSeq}. 이미 있어도 204, 없는 단지는 404, 50개가 차 있으면 409 */
 export function useAddToWatchlist(aptSeq: string) {
@@ -13,7 +13,7 @@ export function useAddToWatchlist(aptSeq: string) {
       })
       ensureOk(result)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: watchlistQuery.queryKey }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: watchlistQuery.queryKey }),
   })
 }
 
@@ -28,6 +28,6 @@ export function useRemoveFromWatchlist(aptSeq: string) {
       })
       ensureOk(result)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: watchlistQuery.queryKey }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: watchlistQuery.queryKey }),
   })
 }
