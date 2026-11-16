@@ -116,3 +116,26 @@ export const watchlistQuery = queryOptions({
   queryKey: ['me', 'watchlist'],
   queryFn: () => api.GET('/api/me/watchlist').then(unwrap),
 })
+
+/** 알림 한 페이지 건수 (서버 기본값과 같다) */
+export const NOTIFICATION_PAGE_SIZE = 20
+
+/** 내 신고가 알림 한 페이지. page는 API 기준(0부터). 회원 데이터라 ['me', …] 아래 */
+export function notificationsQuery(page: number) {
+  return queryOptions({
+    queryKey: ['me', 'notifications', page],
+    queryFn: () =>
+      api.GET('/api/me/notifications', { params: { query: { page, size: NOTIFICATION_PAGE_SIZE } } }).then(unwrap),
+    // 페이지를 넘기거나 읽음 처리 뒤 다시 받는 동안 목록을 남긴다 (흐리게 표시)
+    placeholderData: keepPreviousData,
+  })
+}
+
+/**
+ * 안 읽은 알림 수. 목록과 따로 둔다: 목록은 페이지 하나만 보므로 전체 안 읽은 수를 알 수 없다.
+ * 키가 ['me', 'notifications', …] 아래가 아니라서, 읽음 처리 뒤에는 두 키를 각각 무효화한다 (api/notifications.ts)
+ */
+export const unreadCountQuery = queryOptions({
+  queryKey: ['me', 'unread-count'],
+  queryFn: () => api.GET('/api/me/notifications/unread-count').then(unwrap),
+})
