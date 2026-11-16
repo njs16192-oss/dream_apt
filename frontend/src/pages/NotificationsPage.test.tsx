@@ -135,6 +135,45 @@ describe('NotificationsPage', () => {
     await vi.waitFor(() => expect(server.callsTo('PUT', readPath(7))).toHaveLength(1))
   })
 
+  it('링크로 화면을 떠난 뒤 읽음 응답이 와도 반영된다 (돌아오면 읽은 상태·안 읽은 수 0)', async () => {
+    document.cookie = 'XSRF-TOKEN=t; path=/'
+    let read = false
+    let respond: () => void = () => {}
+    const server = mockApi({
+      'GET /api/me': { body: ME },
+      [`GET ${LIST}`]: () => ({
+        body: { content: [notification({ id: 7, read })], page: 0, size: 20, totalElements: 1, totalPages: 1 },
+      }),
+      [`GET ${COUNT}`]: () => ({ body: { count: read ? 0 : 1 } }),
+      // 화면을 떠난 뒤에 응답이 오도록 미룬다
+      [`PUT ${readPath(7)}`]: () =>
+        new Promise<MockResponse>((resolve) => {
+          respond = () => {
+            read = true
+            resolve({ status: 204 })
+          }
+        }),
+      '/api/complexes/11710-8865': { status: 404, body: { status: 404 } },
+    })
+    renderWithProviders(<AppRoutes />, { route: '/notifications' })
+    await main().findByText('안 읽은 알림 1개')
+
+    await userEvent.click(main().getByRole('link', { name: '헬리오시티' }))
+    expect(await screen.findByText('단지를 찾을 수 없어요')).toBeInTheDocument()
+    respond()
+    // 무효화는 hook 옵션(onSuccess)이라 알림 화면이 사라진 뒤에도 돈다. 보는 화면이 없으니 바로 다시 받지 않고 stale로만 표시한다
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(server.callsTo('GET', COUNT)).toHaveLength(1)
+
+    await userEvent.click(screen.getByTestId('history-back'))
+
+    // 돌아오면 stale이라 다시 받는다 (무효화가 없었다면 staleTime 5분 안이라 옛 값을 그대로 보여준다)
+    expect(await main().findByText('안 읽은 알림 0개')).toBeInTheDocument()
+    await vi.waitFor(() => expect(main().queryByText('안 읽음')).not.toBeInTheDocument())
+    expect(server.callsTo('GET', COUNT)).toHaveLength(2)
+    expect(server.callsTo('GET', LIST)).toHaveLength(2)
+  })
+
   it('이미 읽은 알림의 단지 링크는 읽음 요청을 보내지 않는다', async () => {
     const server = setupServer([notification({ id: 7, read: true })])
     renderWithProviders(<AppRoutes />, { route: '/notifications' })
