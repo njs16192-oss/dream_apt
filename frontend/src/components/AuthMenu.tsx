@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useLogout } from '../api/auth'
-import { meQuery } from '../api/queries'
+import { meQuery, unreadCountQuery } from '../api/queries'
 import { loginPath } from '../lib/safeNext'
 
 /** 이 화면들에서는 "로그인" 링크를 숨긴다 (이미 그 화면이다) */
@@ -12,7 +12,7 @@ const AUTH_PATHS = new Set(['/login', '/signup'])
  * 헤더 오른쪽의 로그인 상태.
  * - 확인 중이거나 확인에 실패하면 빈 자리만 둔다. 헤더 때문에 전체 오류 화면을 띄우지 않는다
  * - 비로그인: "로그인" 링크. 로그인한 뒤 지금 화면으로 돌아오도록 ?next=에 현재 주소를 싣는다
- * - 로그인: 관심단지 링크 + 이메일 + 로그아웃 버튼
+ * - 로그인: 관심단지·알림(안 읽은 수) 링크 + 이메일 + 로그아웃 버튼
  * - 로그아웃 버튼으로 로그아웃하면 첫 화면('/')으로 간다. 로그인이 필요한 화면에 있었다면 거기서 벗어나야 하고,
  *   공개 화면에서도 같은 동작으로 맞춘다. 세션 만료(401)일 때는 RequireLogin이 로그인 화면(?next=)으로 보낸다
  */
@@ -24,6 +24,8 @@ export function AuthMenu() {
   // flushSync가 이동을 바로 그리려면 라우터가 이동을 transition으로 미루지 않아야 한다 (main.tsx의 useTransitions={false})
   const logout = useLogout({ onLoggedOut: () => flushSync(() => navigate('/')) })
   const location = useLocation()
+  // 안 읽은 수는 로그인했을 때만 묻는다. 60초마다·창으로 돌아올 때 다시 묻는다 (unreadCountQuery)
+  const unread = useQuery({ ...unreadCountQuery, enabled: Boolean(me.data) })
 
   if (me.data === undefined) {
     // 폭을 잡아 둬서 응답이 와도 헤더가 흔들리지 않게 한다
@@ -35,7 +37,7 @@ export function AuthMenu() {
     return (
       <Link
         to={loginPath(location.pathname + location.search)}
-        className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+        className="rounded-md px-1.5 py-1.5 sm:px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
       >
         로그인
       </Link>
@@ -43,13 +45,14 @@ export function AuthMenu() {
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
+    <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
       <Link
         to="/watchlist"
-        className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+        className="shrink-0 rounded-md px-1.5 py-1.5 sm:px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
       >
         관심단지
       </Link>
+      <NotificationsLink count={unread.data?.count} />
       {/* 좁은 화면에서는 메뉴가 넘치지 않게 이메일을 숨긴다 */}
       <span title={me.data.email} className="hidden max-w-56 truncate text-sm text-slate-600 sm:block">
         {me.data.email}
@@ -58,7 +61,7 @@ export function AuthMenu() {
         type="button"
         onClick={() => logout.mutate()}
         disabled={logout.isPending}
-        className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+        className="shrink-0 rounded-md px-1.5 py-1.5 sm:px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
       >
         {logout.isPending ? '로그아웃 중…' : '로그아웃'}
       </button>
@@ -69,5 +72,30 @@ export function AuthMenu() {
         </span>
       )}
     </div>
+  )
+}
+
+/**
+ * "알림" 링크와 안 읽은 수 배지. 0이거나 아직 모르면(불러오는 중·실패) 배지 없이 링크만.
+ * 99를 넘으면 "99+" (헤더 폭). 화면 낭독기는 배지 글자 대신 링크 이름으로 수를 읽는다.
+ */
+function NotificationsLink({ count }: { count: number | undefined }) {
+  const hasUnread = count !== undefined && count > 0
+  return (
+    <Link
+      to="/notifications"
+      aria-label={hasUnread ? `알림, 안 읽은 알림 ${count}개` : '알림'}
+      className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 sm:px-3"
+    >
+      알림
+      {hasUnread && (
+        <span
+          aria-hidden="true"
+          className="min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
   )
 }

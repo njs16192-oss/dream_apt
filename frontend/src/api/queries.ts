@@ -138,4 +138,10 @@ export function notificationsQuery(page: number) {
 export const unreadCountQuery = queryOptions({
   queryKey: ['me', 'unread-count'],
   queryFn: () => api.GET('/api/me/notifications/unread-count').then(unwrap),
+  // 새 알림은 배치가 만든다. 헤더 배지가 따라가도록 60초마다 묻는다 (탭이 뒤에 있으면 쉰다: refetchIntervalInBackground 기본 false)
+  refetchInterval: 60_000,
+  // 다른 탭에서 읽었거나 로그아웃했을 수 있어 창으로 돌아오면 다시 묻는다 (401이면 세션 만료로 처리됨)
+  refetchOnWindowFocus: true,
+  // 포커스 refetch는 stale한 쿼리에만 걸린다. 전역 staleTime(5분)이면 돌아와도 묻지 않으므로 0
+  staleTime: 0,
 })

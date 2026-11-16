@@ -135,7 +135,7 @@ describe('NotificationsPage', () => {
     await vi.waitFor(() => expect(server.callsTo('PUT', readPath(7))).toHaveLength(1))
   })
 
-  it('링크로 화면을 떠난 뒤 읽음 응답이 와도 반영된다 (돌아오면 읽은 상태·안 읽은 수 0)', async () => {
+  it('링크로 화면을 떠난 뒤 읽음 응답이 와도 반영된다 (헤더 배지는 바로, 목록은 돌아오면)', async () => {
     document.cookie = 'XSRF-TOKEN=t; path=/'
     let read = false
     let respond: () => void = () => {}
@@ -156,21 +156,25 @@ describe('NotificationsPage', () => {
       '/api/complexes/11710-8865': { status: 404, body: { status: 404 } },
     })
     renderWithProviders(<AppRoutes />, { route: '/notifications' })
+    const nav = within(screen.getByRole('navigation', { name: '주요 메뉴' }))
     await main().findByText('안 읽은 알림 1개')
+    expect(await nav.findByRole('link', { name: '알림, 안 읽은 알림 1개' })).toBeInTheDocument()
 
     await userEvent.click(main().getByRole('link', { name: '헬리오시티' }))
     expect(await screen.findByText('단지를 찾을 수 없어요')).toBeInTheDocument()
+    const countsBefore = server.callsTo('GET', COUNT).length
     respond()
-    // 무효화는 hook 옵션(onSuccess)이라 알림 화면이 사라진 뒤에도 돈다. 보는 화면이 없으니 바로 다시 받지 않고 stale로만 표시한다
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(server.callsTo('GET', COUNT)).toHaveLength(1)
+
+    // 무효화는 hook 옵션(onSuccess)이라 알림 화면이 사라진 뒤에도 돈다. 헤더가 안 읽은 수를 보고 있어서 바로 다시 받는다
+    expect(await nav.findByRole('link', { name: '알림' })).toBeInTheDocument()
+    expect(server.callsTo('GET', COUNT).length).toBeGreaterThan(countsBefore)
+    // 목록은 보는 화면이 없어 다시 받지 않고 stale로만 표시한다
+    expect(server.callsTo('GET', LIST)).toHaveLength(1)
 
     await userEvent.click(screen.getByTestId('history-back'))
 
-    // 돌아오면 stale이라 다시 받는다 (무효화가 없었다면 staleTime 5분 안이라 옛 값을 그대로 보여준다)
-    expect(await main().findByText('안 읽은 알림 0개')).toBeInTheDocument()
+    // 돌아오면 stale이라 다시 받는다 (무효화가 없었다면 staleTime 5분 안이라 옛 목록을 그대로 보여준다)
     await vi.waitFor(() => expect(main().queryByText('안 읽음')).not.toBeInTheDocument())
-    expect(server.callsTo('GET', COUNT)).toHaveLength(2)
     expect(server.callsTo('GET', LIST)).toHaveLength(2)
   })
 
